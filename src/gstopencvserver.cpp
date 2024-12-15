@@ -2,7 +2,7 @@
  * GStreamer
  * Copyright (C) 2005 Thomas Vander Stichele <thomas@apestaart.org>
  * Copyright (C) 2005 Ronald S. Bultje <rbultje@ronald.bitfreak.net>
- * Copyright (C) 2024 Robert Vaughan <<user@hostname.org>>
+ * Copyright (C) 2024 Robert Vaughan <robert.glissmann@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -63,14 +63,15 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 #include <opencv2/dnn/dnn.hpp>
-#include <filesystem>
 #include <vector>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <chrono>
 
 #include "gstopencv-utils.h"
+#include "object_detector.h"
 
 #include "gstopencvserver.h"
 
@@ -91,171 +92,10 @@ enum
     PROP_CONFIGS_PATH,
     PROP_WEIGHTS_PATH,
     PROP_CLASS_NAMES_PATH,
-    PROP_ANNOTATE
-};
-
-struct Detection {
-    int class_id;
-    std::string class_name;
-    cv::Rect box;
-    gfloat confidence;
-};
-
-struct GstOpenCVServerState {
-
-    gboolean initialized_;
-
-    GstOpenCVServer* server_;
-
-    // Caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
-    float conf_threshold;
-    float nms_threshold;
-
-    // Neural net
-    std::unique_ptr<cv::dnn::DetectionModel> model_;
-
-    std::vector<std::string> class_names_;
-
-    GstOpenCVServerState() 
-        : initialized_(FALSE)
-        , server_(nullptr)
-        , width(-1)
-        , height(-1)
-        , conf_threshold(0.45)
-        , nms_threshold(0.2)
-    {
-    }
-
-    gboolean is_initialized() const
-    {
-        return initialized_;
-    }
-
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names)
-    {
-        gboolean success = FALSE;
-
-        if (config && weights && class_names && (width > 0) && (height > 0))
-        {
-            g_print("Creating detection model.\n");
-
-            success = parse_class_names(class_names);
-
-            if (success)
-            {
-                model_ = std::make_unique<cv::dnn::DetectionModel>(
-                    weights,
-                    config
-                );
-
-                cv::Size input_size(320, 320);
-                model_->setInputSize(input_size);
-
-                // cv::Scalar input_scale = 1.0 / 127.5;
-                model_->setInputScale(1.0 / 127.5);
-
-                cv::Scalar input_mean = 127.5;
-                model_->setInputMean(input_mean);
-
-                model_->setInputSwapRB(true);
-
-                initialized_ = TRUE;
-            }
-            else
-            {
-                success = false;
-            }
-        }
-
-        return success;
-    }
-
-    gboolean parse_class_names(const gchar* filename)
-    {
-        std::ifstream file(filename);
-
-        if (file.is_open())
-        {
-            std::string line;
-            while (std::getline(file, line))
-            {
-                class_names_.push_back(line);
-            }
-
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    gboolean get_objects(const cv::Mat& image, std::vector<Detection>& detections)
-    {
-        gboolean success = FALSE;
-
-        std::vector<int> class_ids;
-        std::vector<float> confidences;
-        std::vector<cv::Rect> boxes;
-
-        (void)detections;
-
-        if (is_initialized())
-        {
-            model_->detect(image, class_ids, confidences, boxes, conf_threshold, nms_threshold);
-
-            for (std::size_t index = 0; index < class_ids.size(); ++index)
-            {
-                Detection detection;
-
-                detection.class_id = class_ids[index];
-                if (detection.class_id < static_cast<int>(class_names_.size()))
-                {
-                    detection.class_name = class_names_[static_cast<std::size_t>(detection.class_id)];
-                }
-                else
-                {
-                    GST_ELEMENT_WARNING(server_, RESOURCE, BUSY,
-                        ("Invalid class_id=%d.", detection.class_id),
-                        ("Class ID is invalid."));
-                }
-
-                detection.box = boxes[index];
-                detection.confidence = confidences[index];
-
-                detections.push_back(detection);
-            }
-
-            success = TRUE;
-        }
-
-        return success;
-    }
-
-    void annotate_image(const std::vector<Detection>& detections, cv::Mat& image)
-    {
-        static const int thickness = 2;
-        cv::Scalar color(0, 255, 0);
-
-        for (auto it = detections.begin(); it != detections.end(); ++it)
-        {
-            // cv2.rectangle(img,box,color=(0,255,0),thickness=2)
-            // cv2.putText(img,classNames[classId-1].upper(),(box[0]+10,box[1]+30),
-            // cv2.FONT_HERSHEY_COMPLEX,1,(0,255,0),2)
-            // cv2.putText(img,str(round(confidence*100,2)),(box[0]+200,box[1]+30),
-            // cv2.FONT_HERSHEY_COMPLEX,1,(0,255,0),2)
-            cv::rectangle(image, it->box, color, thickness);
-
-            cv::Point class_name_location(it->box.x + 10, it->box.y + 30);
-            cv::putText(image, it->class_name, class_name_location, cv::FONT_HERSHEY_COMPLEX, 1, color);
-
-            cv::Point confidence_location(it->box.x + 200, it->box.y + 30);
-            cv::putText(image, std::to_string(it->confidence), confidence_location, cv::FONT_HERSHEY_COMPLEX, 1, color);
-        }
-    }
+    PROP_ANNOTATE,
+    PROP_PORT,
+    PROP_CONF_THRESHOLD,
+    PROP_NMS_THRESHOLD
 };
 
 struct _GstOpenCVServer
@@ -270,8 +110,12 @@ struct _GstOpenCVServer
     gchar* weights_path;
     gchar* class_names_path;
     gboolean annotate;
+    guint port;
+    float conf_threshold;
+    float nms_threshold;
 
-    GstOpenCVServerState* state_;
+    // std::unique_ptr<ObjectDetector> detector_;
+    ObjectDetector* detector_;
 
     _GstOpenCVServer()
         : sinkpad(nullptr)
@@ -280,7 +124,8 @@ struct _GstOpenCVServer
         , configs_path(nullptr)
         , weights_path(nullptr)
         , annotate(TRUE)
-        , state_(nullptr)
+        , detector_(nullptr)
+        // , detector_(std::make_unique<ObjectDetector>())
     {
 
     }
@@ -299,14 +144,20 @@ struct _GstOpenCVServer
 static GstStaticPadTemplate sink_factory = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS ("ANY")
-    );
+    GST_STATIC_CAPS (
+        "video/x-raw, "
+            "format=(string)BGR"
+    )
+);
 
 static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS ("ANY")
-    );
+    GST_STATIC_CAPS (
+        "video/x-raw, "
+            "format=(string)BGR"
+    )
+);
 
 #define gst_open_cvserver_parent_class parent_class
 G_DEFINE_TYPE (GstOpenCVServer, gst_open_cvserver, GST_TYPE_ELEMENT);
@@ -324,21 +175,6 @@ static gboolean gst_open_cvserver_sink_event (GstPad * pad,
     GstObject * parent, GstEvent * event);
 static GstFlowReturn gst_open_cvserver_chain (GstPad * pad,
     GstObject * parent, GstBuffer * buf);
-
-static gboolean valid_file_path(const gchar* path)
-{
-    if (!path) return FALSE;
-
-    std::error_code error;
-    std::filesystem::file_status status = std::filesystem::status(path, error);
-
-    if (!error)
-    {
-        return std::filesystem::is_regular_file(status) ? TRUE : FALSE;
-    }
-
-    return FALSE;
-}
 
 /* GObject vmethod implementations */
 
@@ -391,6 +227,30 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
             "Enable or disable detected object annotation.",
             TRUE, G_PARAM_READWRITE));
 
+    g_object_class_install_property( gobject_class, PROP_PORT,
+        g_param_spec_int(
+            "port",
+            "Port",
+            "Port that detection server will opened on",
+            0, 65525,
+            0, G_PARAM_READWRITE));
+
+    g_object_class_install_property( gobject_class, PROP_CONF_THRESHOLD,
+        g_param_spec_int(
+            "conf",
+            "Confidense",
+            "Confidense threshold for object detection",
+            0.1, 1.0,
+            0.6, G_PARAM_READWRITE));
+
+    g_object_class_install_property( gobject_class, PROP_NMS_THRESHOLD,
+        g_param_spec_int(
+            "nms",
+            "NMS",
+            "Non-maximum suppresion threshold",
+            0.1, 1.0,
+            0.2, G_PARAM_READWRITE));
+
     gst_element_class_set_details_simple (gstelement_class,
         "OpenCVServer",
         "FIXME:Generic",
@@ -410,7 +270,7 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
 static void
 gst_open_cvserver_init (GstOpenCVServer * filter)
 {
-    GstOpenCVServerState* state = new GstOpenCVServerState();
+    ObjectDetector* detector = new ObjectDetector();
 
     filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
     gst_pad_set_event_function (filter->sinkpad,
@@ -427,10 +287,7 @@ gst_open_cvserver_init (GstOpenCVServer * filter)
     filter->silent = FALSE;
     filter->annotate = TRUE;
 
-    g_print("OPENCV INIT\n");
-
-    state->server_ = filter;
-    filter->state_ = state;
+    filter->detector_ = detector;
 }
 
 static void
@@ -438,9 +295,9 @@ gst_open_cvserver_finalize(GObject *object)
 {
     GObjectClass *klass = G_OBJECT_CLASS(gst_open_cvserver_parent_class);
     GstOpenCVServer *self = GST_OPENCVSERVER(object);
+    (void)self;
 
-    delete self->state_;
-    self->state_ = nullptr;
+    delete self->detector_;
 
     return klass->finalize(object);
 }
@@ -514,6 +371,15 @@ gst_open_cvserver_set_property (GObject * object, guint prop_id,
     case PROP_ANNOTATE:
         filter->annotate = g_value_get_boolean(value);
         break;
+    case PROP_PORT:
+        filter->port = g_value_get_int(value);
+        break;
+    case PROP_CONF_THRESHOLD:
+        filter->conf_threshold = g_value_get_float(value);
+        break;
+    case PROP_NMS_THRESHOLD:
+        filter->nms_threshold = g_value_get_float(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
@@ -541,6 +407,15 @@ gst_open_cvserver_get_property (GObject * object, guint prop_id,
         break;
     case PROP_ANNOTATE:
         g_value_set_boolean(value, filter->annotate);
+        break;
+    case PROP_PORT:
+        g_value_set_int(value, filter->port);
+        break;
+    case PROP_CONF_THRESHOLD:
+        g_value_set_float(value, filter->conf_threshold);
+        break;
+    case PROP_NMS_THRESHOLD:
+        g_value_set_float(value, filter->nms_threshold);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -572,59 +447,78 @@ gst_open_cvserver_sink_event (GstPad * pad, GstObject * parent,
             /* do something with the caps */
             for (guint i = 0; i < gst_caps_get_size(caps); i++) {
                 GstStructure* s = gst_caps_get_structure(caps, i);
-                // gint width, height;
-                // guint delta;
 
-                //video/x-raw, format=(string)NV21, width=(int)1280, height=(int)720, colorimetry=(string)bt709, framerate=(fraction)30/1;
+                // Caps are expected to appear in the following format:
+                // video/x-raw,
+                //     format=(string)NV21,
+                //     width=(int)1280,
+                //     height=(int)720,
+                //     colorimetry=(string)bt709,
+                //     framerate=(fraction)30/1;
 
                 g_print("Received caps for %s\n", gst_structure_get_name(s));
-                gchar* serialized = gst_structure_to_string(s);
-                g_print("  Serialized: <begin>%s<end>\n", serialized);
-                g_free(serialized);
 
-                const gchar* format_string = gst_structure_get_string(s, "format");
-                if (format_string) {
-                    g_print("   Format = %s", gst_structure_get_name(s));
-                } else {
-                    g_print("   MISSING format");
-                }
-                
-                gint width = -1;
-                if (gst_structure_get_int(s, "width", &width)) {
-                    filter->state_->width = width;
-                    g_print("   Width = %d", width);
-                } else {
-                    g_print("   MISSING width");
-                }
+                if (gst_structure_has_name(s, "video/x-raw"))
+                {
+                    gchar* serialized = gst_structure_to_string(s);
+                    g_print("  Serialized: <begin>%s<end>\n", serialized);
+                    g_free(serialized);
 
-                gint height = -1;
-                if (gst_structure_get_int(s, "height", &height)) {
-                    filter->state_->height = height;
-                    g_print("   Height = %d", height);
-                } else {
-                    g_print("   MISSING height");
-                }
+                    if (gst_structure_has_field(s, "format"))
+                    {
+                        const gchar* format_string = gst_structure_get_string(s, "format");
+                        if (format_string) {
+                            filter->detector_->format = gst_video_format_from_string(format_string);
+                            g_print("   Format = %s\n", gst_structure_get_name(s));
+                        }
+                    }
+                    else
+                    {
+                        g_print("   MISSING format");
+                    }
 
-                if (gst_structure_has_field_typed(s, "colorimetry", G_TYPE_STRING)) {
-                    g_print("   Colorimetry = %s", gst_structure_get_string(s, "colorimetry"));
-                } else {
-                    g_print("   MISSING colorimetry");
-                }
+                    if (gst_structure_has_field(s, "width"))
+                    {
+                        gint width = -1;
+                        if (gst_structure_get_int(s, "width", &width))
+                        {
+                            filter->detector_->width = width;
+                            g_print("   Width = %d\n", width);
+                        } 
+                    }
+                    else
+                    {
+                        g_print("   MISSING width");
+                    }
 
-                // if (gst_structure_has_field_typed(s, "width", G_TYPE_INT) &&
-                // gst_structure_has_field_typed(s, "height", G_TYPE_INT)) {
-                //     gst_structure_get_int(s, "width", &width);
-                //     gst_structure_get_int(s, "height", &height);
-                // }
+                    if (gst_structure_has_field(s, "height"))
+                    {
+                        gint height = -1;
+                        if (gst_structure_get_int(s, "height", &height)) {
+                            filter->detector_->height = height;
+                            g_print("   Height = %d\n", height);
+                        }
+                    }
+                    else
+                    {
+                        g_print("   MISSING height");
+                    }
+
+                    if (gst_structure_has_field_typed(s, "colorimetry", G_TYPE_STRING)) {
+                        g_print("   Colorimetry = %s\n", gst_structure_get_string(s, "colorimetry"));
+                    } else {
+                        g_print("   MISSING colorimetry\n");
+                    }
+                }
             }
 
-        /* and forward */
-        ret = gst_pad_event_default (pad, parent, event);
-        break;
+            /* and forward */
+            ret = gst_pad_event_default (pad, parent, event);
+            break;
         }
         default:
-        ret = gst_pad_event_default (pad, parent, event);
-        break;
+            ret = gst_pad_event_default (pad, parent, event);
+            break;
     }
     return ret;
 }
@@ -641,50 +535,41 @@ gst_open_cvserver_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
     filter = GST_OPENCVSERVER (parent);
 
     // Attempt to initialize the filter state.
-    if (!filter->state_->is_initialized())
+    if (!filter->detector_->is_initialized())
     {
-        filter->state_->initialize(filter->configs_path, filter->weights_path, filter->class_names_path);
+        filter->detector_->initialize(filter->configs_path, filter->weights_path, filter->class_names_path);
     }
 
-    if (filter->state_->is_initialized())
+    if (filter->detector_->is_initialized())
     {
-        // cv::Mat image = gst_buffer_to_cv_mat(buf, filter->state_->width, filter->state_->width, 3);
+        ScopedBufferMap scoped_buffer(buf, filter->detector_->width, filter->detector_->height, filter->detector_->format);
 
-        // std::vector<Detection> detections;
-        // if (!filter->state_->get_objects(image, detections))
-        // {
-        //     g_print("ERROR while attempting to get detections!\n");
-        // }
-        // else
-        // {
-        //     g_print("FOUND %lu objects.\n", detections.size());
-        // }
-        GstMapInfo map;
-        gst_buffer_map(buf, &map, GST_MAP_READ);
+        cv::Mat working_image = scoped_buffer.frame();
 
-        {// Create OpenCV Mat
-            cv::Mat frame(cv::Size(filter->state_->width, filter->state_->height), CV_8UC3, map.data, cv::Mat::AUTO_STEP);
-
-            std::vector<Detection> detections;
-            if (!filter->state_->get_objects(frame, detections))
-            {
-                g_print("ERROR while attempting to get detections!\n");
-            }
-            else
-            {
-                g_print("FOUND %lu objects.\n", detections.size());
-            }
+        std::vector<Detection> detections;
+        auto start = std::chrono::high_resolution_clock::now();
+        if (!filter->detector_->get_objects(working_image, detections, filter->annotate))
+        {
+            g_print("ERROR while attempting to get detections!\n");
         }
+        else
+        {
+            g_print("FOUND %lu objects.\n", detections.size());
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        g_print("Detection took %0.3f seconds.\n", elapsed.count());
 
-        // Unmap the buffer
-        gst_buffer_unmap(buf, &map);
+        if ((detections.size() > 0) && filter->annotate)
+        {
+            GstBuffer* annotated_frame = cv_mat_to_gst_buffer(working_image);
+            gst_buffer_unref(buf);
+
+            return gst_pad_push(filter->srcpad, annotated_frame);
+        }
     }
 
-    // if (filter->silent == FALSE)
-    //     g_print ("I'm plugged, therefore I'm in: buffer size is %lu\n");
-
-    /* just push out the incoming buffer without touching it */
-    return gst_pad_push (filter->srcpad, buf);
+    return gst_pad_push(filter->srcpad, buf);
 }
 
 

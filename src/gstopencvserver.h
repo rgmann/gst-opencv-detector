@@ -55,17 +55,6 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (GstOpenCVServer, gst_open_cvserver,
     GST, OPENCVSERVER, GstElement)
 
-// struct _GstOpenCVServer
-// {
-//     GstElement element;
-
-//     GstPad *sinkpad, *srcpad;
-
-//     gboolean silent;
-
-//     GstOpenCVServerState* state_;
-// };
-
 GST_ELEMENT_REGISTER_DECLARE(open_cvserver)
 
 G_END_DECLS
