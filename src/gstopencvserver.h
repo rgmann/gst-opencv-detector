@@ -44,19 +44,19 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#ifndef __GST_OPENCVSERVER_H__
-#define __GST_OPENCVSERVER_H__
+#ifndef __GST_OPENCVDETECTOR_H__
+#define __GST_OPENCVDETECTOR_H__
 
 #include <gst/gst.h>
 
 G_BEGIN_DECLS
 
-#define GST_TYPE_OPENCVSERVER (gst_open_cvserver_get_type())
-G_DECLARE_FINAL_TYPE (GstOpenCVServer, gst_open_cvserver,
-    GST, OPENCVSERVER, GstElement)
+#define GST_TYPE_OPENCVDETECTOR (gst_opencv_detector_get_type())
+G_DECLARE_FINAL_TYPE (GstOpencvDetector, gst_opencv_detector,
+    GST, OPENCVDETECTOR, GstElement)
 
-GST_ELEMENT_REGISTER_DECLARE(open_cvserver)
+GST_ELEMENT_REGISTER_DECLARE(opencv_detector)
 
 G_END_DECLS
 
-#endif /* __GST_OPENCVSERVER_H__ */
+#endif /* __GST_OPENCVDETECTOR_H__ */

@@ -19,14 +19,14 @@ endif
 
 gst_enabled = true
 
-opencvserver_gst_sources = [
+opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
     'object_detector.cpp',
     'gstopencvserver.cpp',
 ]
 
 opencvserver_gst_cpp_args = [
-    '-DVERSION="@0@"'.format(gst_opencvserver_plugin_git_version),
+    '-DVERSION="@0@"'.format(gst_opencv_detector_git_version),
     '-DPACKAGE="@0@"'.format(meson.project_name()),
     '-DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_40',
 ]
@@ -39,8 +39,8 @@ if cc.get_id() == 'clang' and glib_dep.version().version_compare('<2.63.0')
     opencvserver_gst_cpp_args += ['-Wno-unused-function']
 endif
 
-opencvserver_gst = shared_library('gstopencvserver',
-    opencvserver_gst_sources,
+opencvdetector_gst = shared_library('gstopencvdetector',
+    opencvdetector_gst_sources,
     cpp_args : opencvserver_gst_cpp_args,
     dependencies : [gstvideo_dep, gstallocator_dep, opencv_dep],
     install : true,
@@ -49,7 +49,7 @@ opencvserver_gst = shared_library('gstopencvserver',
 
 # Make the plugin visible to GStreamer inside meson devenv.
 fs = import('fs')
-gst_plugin_path = fs.parent(opencvserver_gst.full_path())
+gst_plugin_path = fs.parent(opencvdetector_gst.full_path())
 
 gst_env = environment()
 gst_env.prepend('GST_PLUGIN_PATH', gst_plugin_path)
