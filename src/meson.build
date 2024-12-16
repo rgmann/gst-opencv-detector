@@ -22,7 +22,7 @@ gst_enabled = true
 opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
     'object_detector.cpp',
-    'gstopencvserver.cpp',
+    'gstopencvdetector.cpp',
 ]
 
 opencvserver_gst_cpp_args = [
