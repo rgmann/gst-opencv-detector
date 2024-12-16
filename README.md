@@ -1,9 +1,32 @@
 
+# Gstreamer Computer Vision Detection Plugin (gst-opencv-detector)
+
+This project implements a Gstreamer plugin wrapper for OpenCV object detection models. The pre-trained detection model is passed to the plugin as props and the plugin processes the input raw video stream frame-by-frame. Optionally, detections are annotated on the output frame. Detections are also published to subscribers via TCP.
+
+## Motivation
+
+This project was created specifically to enable OpenCV-based object detection on a Raspberry PI running Ubuntu with an attached Camera Module 3. As of time of writing, ROS2 cannot be natively installed on Raspbian (there are Docker workarounds) and Picamera2 cannot be installed natively on Ubuntu.
+
+## Getting Started
+
+Start by installing the dependencies:
+
+ 1. sudo apt-get install -y libopencv-dev
+ 2. sudo apt-get install -y libglib2.0-dev libgstreamer-plugins-base1.0-dev
+ 3. Clone, build, and install the `raspberrypi` fork of [libcamera](https://libcamera.org). See instructions [here](https://github.com/raspberrypi/libcamera).
+
+Clone and build this project:
+
+ 1. `git clone `
+ 2. `cd gst-opencv-detector`
+ 3. `meson setup build`
+ 4. `ninja -C build`
+
+## Settings
+
+## Usage
+
 ### Dependencies
-
-sudo apt-get install libopencv-dev
-
-`git clone https://github.com/raspberrypi/libcamera.git rpi_libcamera`
 
 
 ### Test Commands
