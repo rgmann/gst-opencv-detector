@@ -24,22 +24,25 @@ Clone and build this project:
 
 ## Settings
 
-`config=<path to config file>` (REQUIRED)
+`config=<path to config file>` (REQUIRED)  
 Path to OpenCV net configuration file.
 
-`weights=<path to weights file>` (REQUIRED)
+`weights=<path to weights file>` (REQUIRED)  
 Path to OpenCV net weights file.
 
-`annotate=<TRUE|FALSE>` (default=TRUE)
+`classes=<path to class name file>` (REQUIRED)  
+Path to class names file.
+
+`annotate=<TRUE|FALSE>` (default=TRUE)  
 Enable or disable detected object annotation.
 
-`port=<port number>` (default=0)
+`port=<port number>` (default=0)  
 TCP port number used to publish the detection list. If a port number is not specified, then the detections server is not started.
 
-`confidence-threshold=<[0.0, 1.0]>` (default=0.5)
+`confidence-threshold=<[0.0, 1.0]>` (default=0.5)  
 Inference confidence threshold.
 
-`nms-threshold=<[0.0, 1.0]>` (default=0.1)
+`nms-threshold=<[0.0, 1.0]>` (default=0.1)  
 Non-maximum suppression threshold
 
 ## Usage
