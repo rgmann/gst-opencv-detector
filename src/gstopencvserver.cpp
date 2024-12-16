@@ -237,17 +237,17 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
 
     g_object_class_install_property( gobject_class, PROP_CONF_THRESHOLD,
         g_param_spec_int(
-            "conf",
-            "Confidense",
-            "Confidense threshold for object detection",
+            "confidence-threshold",
+            "Confidence Threshold",
+            "Confidence threshold for object detection",
             0.1, 1.0,
             0.6, G_PARAM_READWRITE));
 
     g_object_class_install_property( gobject_class, PROP_NMS_THRESHOLD,
         g_param_spec_int(
-            "nms",
-            "NMS",
-            "Non-maximum suppresion threshold",
+            "nms-threshold",
+            "Non-Maximum Suppression Threshold",
+            "Non-maximum suppression threshold",
             0.1, 1.0,
             0.2, G_PARAM_READWRITE));
 

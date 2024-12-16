@@ -1,11 +1,11 @@
 
-# Gstreamer Computer Vision Detection Plugin (gst-opencv-detector)
+# gst-opencv-detector - Gstreamer Computer Vision Plugin
 
-This project implements a Gstreamer plugin wrapper for OpenCV object detection models. The pre-trained detection model is passed to the plugin as props and the plugin processes the input raw video stream frame-by-frame. Optionally, detections are annotated on the output frame. Detections are also published to subscribers via TCP.
+This project implements a Gstreamer plugin wrapper for OpenCV object detection. The pre-trained detection model is passed to the plugin as a prop and the plugin processes the raw video stream frame-by-frame. Optionally, detections are annotated on each output frame. Detections are also published to subscribers via TCP.
 
 ## Motivation
 
-This project was created specifically to enable OpenCV-based object detection on a Raspberry PI running Ubuntu with an attached Camera Module 3. As of time of writing, ROS2 cannot be natively installed on Raspbian (there are Docker workarounds) and Picamera2 cannot be installed natively on Ubuntu.
+As of time of writing, ROS2 cannot be natively installed on Raspbian (Docker-based workarounds do exist) and Picamera2 cannot be installed natively on Ubuntu. This project was created specifically to enable OpenCV-based object detection on a Raspberry PI running Ubuntu with an attached Camera Module 3.
 
 ## Getting Started
 
@@ -17,12 +17,30 @@ Start by installing the dependencies:
 
 Clone and build this project:
 
- 1. `git clone `
+ 1. `git clone https://github.com/rgmann/gst-opencv-detector.git`
  2. `cd gst-opencv-detector`
  3. `meson setup build`
  4. `ninja -C build`
 
 ## Settings
+
+`config=<path to config file>` (REQUIRED)
+Path to OpenCV net configuration file.
+
+`weights=<path to weights file>` (REQUIRED)
+Path to OpenCV net weights file.
+
+`annotate=<TRUE|FALSE>` (default=TRUE)
+Enable or disable detected object annotation.
+
+`port=<port number>` (default=0)
+TCP port number used to publish the detection list. If a port number is not specified, then the detections server is not started.
+
+`confidence-threshold=<[0.0, 1.0]>` (default=0.5)
+Inference confidence threshold.
+
+`nms-threshold=<[0.0, 1.0]>` (default=0.1)
+Non-maximum suppression threshold
 
 ## Usage
 
