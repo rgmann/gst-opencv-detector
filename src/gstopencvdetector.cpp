@@ -44,14 +44,14 @@
  */
 
 /**
- * SECTION:element-opencvserver
+ * SECTION:element-opencvdetector
  *
- * FIXME:Describe opencvserver here.
+ * FIXME:Describe opencvdetector here.
  *
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch -v -m fakesrc ! opencvserver ! fakesink silent=TRUE
+ * gst-launch -v -m fakesrc ! opencvdetector ! fakesink silent=TRUE
  * ]|
  * </refsect2>
  */
@@ -73,10 +73,10 @@
 #include "gstopencv-utils.h"
 #include "object_detector.h"
 
-#include "gstopencvserver.h"
+#include "gstopencvdetector.h"
 
-GST_DEBUG_CATEGORY_STATIC (gst_open_cvserver_debug);
-#define GST_CAT_DEFAULT gst_open_cvserver_debug
+GST_DEBUG_CATEGORY_STATIC (gst_opencv_detector_debug);
+#define GST_CAT_DEFAULT gst_opencv_detector_debug
 
 /* Filter signals and args */
 enum
@@ -98,7 +98,7 @@ enum
     PROP_NMS_THRESHOLD
 };
 
-struct _GstOpenCVServer
+struct _GstOpencvDetector
 {
     GstElement element;
 
@@ -117,7 +117,7 @@ struct _GstOpenCVServer
     // std::unique_ptr<ObjectDetector> detector_;
     ObjectDetector* detector_;
 
-    _GstOpenCVServer()
+    _GstOpencvDetector()
         : sinkpad(nullptr)
         , srcpad(nullptr)
         , silent(FALSE)
@@ -130,7 +130,7 @@ struct _GstOpenCVServer
 
     }
 
-    ~_GstOpenCVServer()
+    ~_GstOpencvDetector()
     {
         g_free(configs_path);
         g_free(weights_path);
@@ -159,28 +159,28 @@ static GstStaticPadTemplate src_factory = GST_STATIC_PAD_TEMPLATE ("src",
     )
 );
 
-#define gst_open_cvserver_parent_class parent_class
-G_DEFINE_TYPE (GstOpenCVServer, gst_open_cvserver, GST_TYPE_ELEMENT);
+#define gst_opencv_detector_parent_class parent_class
+G_DEFINE_TYPE (GstOpencvDetector, gst_opencv_detector, GST_TYPE_ELEMENT);
 
-GST_ELEMENT_REGISTER_DEFINE (open_cvserver, "open_cvserver", GST_RANK_NONE,
-    GST_TYPE_OPENCVSERVER);
+GST_ELEMENT_REGISTER_DEFINE (opencv_detector, "opencv_detector", GST_RANK_NONE,
+    GST_TYPE_OPENCVDETECTOR);
 
-static void gst_open_cvserver_finalize(GObject *object);
-static void gst_open_cvserver_set_property (GObject * object,
+static void gst_opencv_detector_finalize(GObject *object);
+static void gst_opencv_detector_set_property (GObject * object,
     guint prop_id, const GValue * value, GParamSpec * pspec);
-static void gst_open_cvserver_get_property (GObject * object,
+static void gst_opencv_detector_get_property (GObject * object,
     guint prop_id, GValue * value, GParamSpec * pspec);
 
-static gboolean gst_open_cvserver_sink_event (GstPad * pad,
+static gboolean gst_opencv_detector_sink_event (GstPad * pad,
     GstObject * parent, GstEvent * event);
-static GstFlowReturn gst_open_cvserver_chain (GstPad * pad,
+static GstFlowReturn gst_opencv_detector_chain (GstPad * pad,
     GstObject * parent, GstBuffer * buf);
 
 /* GObject vmethod implementations */
 
-/* initialize the opencvserver's class */
+/* initialize the opencvdetector's class */
 static void
-gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
+gst_opencv_detector_class_init (GstOpencvDetectorClass * klass)
 {
     GObjectClass *gobject_class;
     GstElementClass *gstelement_class;
@@ -188,9 +188,9 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
     gobject_class = (GObjectClass *) klass;
     gstelement_class = (GstElementClass *) klass;
 
-    gobject_class->set_property = gst_open_cvserver_set_property;
-    gobject_class->get_property = gst_open_cvserver_get_property;
-    gobject_class->finalize = gst_open_cvserver_finalize;
+    gobject_class->set_property = gst_opencv_detector_set_property;
+    gobject_class->get_property = gst_opencv_detector_get_property;
+    gobject_class->finalize = gst_opencv_detector_finalize;
 
     g_object_class_install_property( gobject_class, PROP_SILENT,
         g_param_spec_boolean(
@@ -252,7 +252,7 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
             0.2, G_PARAM_READWRITE));
 
     gst_element_class_set_details_simple (gstelement_class,
-        "OpenCVServer",
+        "OpencvDetector",
         "FIXME:Generic",
         "FIXME:Generic Template Element", "Robert Vaughan <<user@hostname.org>>");
 
@@ -268,15 +268,15 @@ gst_open_cvserver_class_init (GstOpenCVServerClass * klass)
  * initialize instance structure
  */
 static void
-gst_open_cvserver_init (GstOpenCVServer * filter)
+gst_opencv_detector_init (GstOpencvDetector * filter)
 {
     ObjectDetector* detector = new ObjectDetector();
 
     filter->sinkpad = gst_pad_new_from_static_template (&sink_factory, "sink");
     gst_pad_set_event_function (filter->sinkpad,
-        GST_DEBUG_FUNCPTR (gst_open_cvserver_sink_event));
+        GST_DEBUG_FUNCPTR (gst_opencv_detector_sink_event));
     gst_pad_set_chain_function (filter->sinkpad,
-        GST_DEBUG_FUNCPTR (gst_open_cvserver_chain));
+        GST_DEBUG_FUNCPTR (gst_opencv_detector_chain));
     GST_PAD_SET_PROXY_CAPS (filter->sinkpad);
     gst_element_add_pad (GST_ELEMENT (filter), filter->sinkpad);
 
@@ -291,10 +291,10 @@ gst_open_cvserver_init (GstOpenCVServer * filter)
 }
 
 static void
-gst_open_cvserver_finalize(GObject *object)
+gst_opencv_detector_finalize(GObject *object)
 {
-    GObjectClass *klass = G_OBJECT_CLASS(gst_open_cvserver_parent_class);
-    GstOpenCVServer *self = GST_OPENCVSERVER(object);
+    GObjectClass *klass = G_OBJECT_CLASS(gst_opencv_detector_parent_class);
+    GstOpencvDetector *self = GST_OPENCVDETECTOR(object);
     (void)self;
 
     delete self->detector_;
@@ -303,10 +303,10 @@ gst_open_cvserver_finalize(GObject *object)
 }
 
 static void
-gst_open_cvserver_set_property (GObject * object, guint prop_id,
+gst_opencv_detector_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-    GstOpenCVServer *filter = GST_OPENCVSERVER (object);
+    GstOpencvDetector *filter = GST_OPENCVDETECTOR (object);
 
     g_print("Setting OPENCV prop: prop_id=%d\n", prop_id);
 
@@ -387,10 +387,10 @@ gst_open_cvserver_set_property (GObject * object, guint prop_id,
 }
 
 static void
-gst_open_cvserver_get_property (GObject * object, guint prop_id,
+gst_opencv_detector_get_property (GObject * object, guint prop_id,
     GValue * value, GParamSpec * pspec)
 {
-  GstOpenCVServer *filter = GST_OPENCVSERVER (object);
+  GstOpencvDetector *filter = GST_OPENCVDETECTOR (object);
 
     switch (prop_id) {
     case PROP_SILENT:
@@ -427,13 +427,13 @@ gst_open_cvserver_get_property (GObject * object, guint prop_id,
 
 /* this function handles sink events */
 static gboolean
-gst_open_cvserver_sink_event (GstPad * pad, GstObject * parent,
+gst_opencv_detector_sink_event (GstPad * pad, GstObject * parent,
     GstEvent * event)
 {
-    GstOpenCVServer *filter;
+    GstOpencvDetector *filter;
     gboolean ret;
 
-    filter = GST_OPENCVSERVER (parent);
+    filter = GST_OPENCVDETECTOR (parent);
 
     GST_LOG_OBJECT (filter, "Received %s event: %" GST_PTR_FORMAT,
             GST_EVENT_TYPE_NAME (event), event);
@@ -527,12 +527,12 @@ gst_open_cvserver_sink_event (GstPad * pad, GstObject * parent,
  * this function does the actual processing
  */
 static GstFlowReturn
-gst_open_cvserver_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
+gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 {
-    GstOpenCVServer *filter;
+    GstOpencvDetector *filter;
     (void)pad;
 
-    filter = GST_OPENCVSERVER (parent);
+    filter = GST_OPENCVDETECTOR (parent);
 
     // Attempt to initialize the filter state.
     if (!filter->detector_->is_initialized())
@@ -546,21 +546,21 @@ gst_open_cvserver_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 
         cv::Mat working_image = scoped_buffer.frame();
 
-        std::vector<Detection> detections;
+        DetectionList detection_list;
         auto start = std::chrono::high_resolution_clock::now();
-        if (!filter->detector_->get_objects(working_image, detections, filter->annotate))
+        if (!filter->detector_->get_objects(working_image, detection_list, filter->annotate))
         {
             g_print("ERROR while attempting to get detections!\n");
         }
         else
         {
-            g_print("FOUND %lu objects.\n", detections.size());
+            g_print("FOUND %lu objects.\n", detection_list.detections.size());
         }
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
         g_print("Detection took %0.3f seconds.\n", elapsed.count());
 
-        if ((detections.size() > 0) && filter->annotate)
+        if ((detection_list.detections.size() > 0) && filter->annotate)
         {
             GstBuffer* annotated_frame = cv_mat_to_gst_buffer(working_image);
             gst_buffer_unref(buf);
@@ -578,16 +578,16 @@ gst_open_cvserver_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
  * register the element factories and other features
  */
 static gboolean
-opencvserver_init (GstPlugin * opencvserver)
+opencvdetector_init (GstPlugin * opencvdetector)
 {
   /* debug category for filtering log messages
    *
-   * exchange the string 'Template opencvserver' with your description
+   * exchange the string 'Template opencvdetector' with your description
    */
-  GST_DEBUG_CATEGORY_INIT (gst_open_cvserver_debug, "opencvserver",
-      0, "Template opencvserver");
+  GST_DEBUG_CATEGORY_INIT (gst_opencv_detector_debug, "opencvdetector",
+      0, "Template opencvdetector");
 
-  return GST_ELEMENT_REGISTER (open_cvserver, opencvserver);
+  return GST_ELEMENT_REGISTER (opencv_detector, opencvdetector);
 }
 
 /* PACKAGE: this is usually set by meson depending on some _INIT macro
@@ -601,11 +601,11 @@ opencvserver_init (GstPlugin * opencvserver)
 
 /* gstreamer looks for this structure to register opencvservers
  *
- * exchange the string 'Template opencvserver' with your opencvserver description
+ * exchange the string 'Template opencvdetector' with your opencvdetector description
  */
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    opencvserver,
-    "open_cvserver",
-    opencvserver_init,
+    opencvdetector,
+    "opencv_detector",
+    opencvdetector_init,
     PACKAGE_VERSION, GST_LICENSE, GST_PACKAGE_NAME, GST_PACKAGE_ORIGIN)

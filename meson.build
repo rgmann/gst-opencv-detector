@@ -1,4 +1,4 @@
-project('gst-opencvserver-plugin', 'c', 'cpp',
+project('gst-opencv-detector', 'c', 'cpp',
     meson_version : '>= 0.63',
     version : '1.0.0',
     default_options : [
@@ -8,15 +8,15 @@ project('gst-opencvserver-plugin', 'c', 'cpp',
     ],
     license : 'LGPL 2.1+')
 
-gst_opencvserver_plugin_git_version = meson.project_version()
+gst_opencv_detector_git_version = meson.project_version()
 
-gst_opencvserver_plugin_git_version = gst_opencvserver_plugin_git_version.split('+')[0]
+gst_opencv_detector_git_version = gst_opencv_detector_git_version.split('+')[0]
 project_version = meson.project_version().split('+')[0]
 
 plugin_c_args = ['-DHAVE_CONFIG_H']
 
 cdata = configuration_data()
-cdata.set_quoted('PACKAGE_VERSION', gst_opencvserver_plugin_git_version)
+cdata.set_quoted('PACKAGE_VERSION', gst_opencv_detector_git_version)
 cdata.set_quoted('PACKAGE', meson.project_name())
 cdata.set_quoted('GST_LICENSE', 'LGPL')
 cdata.set_quoted('GST_API_VERSION', project_version)
