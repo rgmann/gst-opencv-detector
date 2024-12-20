@@ -1,0 +1,2 @@
+# gst-opencv-server schema
+

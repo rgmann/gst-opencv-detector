@@ -1,6 +1,8 @@
 
 # gst-opencv-detector - Gstreamer Computer Vision Plugin
 
+<img align="cener" alt="Project Status: Alpha" src="https://img.shields.io/badge/Status-Alpha-red">
+
 This project implements a Gstreamer plugin wrapper for OpenCV object detection. The pre-trained detection model is passed to the plugin as a prop and the plugin processes the raw video stream frame-by-frame. Optionally, detections are annotated on each output frame. Detections are also published to subscribers via TCP.
 
 ## Motivation

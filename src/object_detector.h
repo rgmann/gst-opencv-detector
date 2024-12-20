@@ -41,37 +41,15 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#pragma once
+#ifndef __OBJECT_DETECTOR_H__
+#define __OBJECT_DETECTOR_H__
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include <string>
-#include <vector>
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn/dnn.hpp>
+#include "detections_list.h"
 
-struct Detection {
-
-    // Classification returned by OpenCV 
-    int class_id;
-
-    // Class name associated with the ID
-    std::string class_name;
-
-    // Bounding rectangle
-    cv::Rect box;
-
-    // Classification confidence score
-    float confidence;
-
-    std::string to_string() const;
-};
-
-struct DetectionList {
-    int width;
-    int height;
-    std::vector<Detection> detections;
-};
 
 class ObjectDetector {
 public:
@@ -126,3 +104,5 @@ private:
 
     std::vector<std::string> class_names_;
 };
+
+#endif // __OBJECT_DETECTOR_H__

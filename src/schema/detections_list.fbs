@@ -1,0 +1,23 @@
+
+namespace gst_opencv_detector;
+
+struct Rect {
+    x:uint;
+    y:uint;
+    height:uint;
+    width:uint;
+}
+
+table Detection {
+    class_id:int;
+    class_name:string;
+    box:Rect;
+    confidence:float;
+}
+
+table DetectionList {
+    timestamp:ulong;
+    image_width:uint;
+    image_height:uint;
+    detections:[Detection];
+}

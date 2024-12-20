@@ -1,0 +1,4 @@
+# Ignore everything wrap files
+*
+!.gitignore
+!*.wrap

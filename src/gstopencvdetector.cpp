@@ -72,6 +72,7 @@
 
 #include "gstopencv-utils.h"
 #include "object_detector.h"
+#include "detections_list_server.h"
 
 #include "gstopencvdetector.h"
 
