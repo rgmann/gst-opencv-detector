@@ -117,6 +117,7 @@ struct _GstOpencvDetector
 
     // std::unique_ptr<ObjectDetector> detector_;
     ObjectDetector* detector_;
+    detections_list_server* server_;
 
     _GstOpencvDetector()
         : sinkpad(nullptr)
@@ -126,7 +127,7 @@ struct _GstOpencvDetector
         , weights_path(nullptr)
         , annotate(TRUE)
         , detector_(nullptr)
-        // , detector_(std::make_unique<ObjectDetector>())
+        , server_(nullptr)
     {
 
     }
@@ -237,7 +238,7 @@ gst_opencv_detector_class_init (GstOpencvDetectorClass * klass)
             0, G_PARAM_READWRITE));
 
     g_object_class_install_property( gobject_class, PROP_CONF_THRESHOLD,
-        g_param_spec_int(
+        g_param_spec_float(
             "confidence-threshold",
             "Confidence Threshold",
             "Confidence threshold for object detection",
@@ -245,7 +246,7 @@ gst_opencv_detector_class_init (GstOpencvDetectorClass * klass)
             0.6, G_PARAM_READWRITE));
 
     g_object_class_install_property( gobject_class, PROP_NMS_THRESHOLD,
-        g_param_spec_int(
+        g_param_spec_float(
             "nms-threshold",
             "Non-Maximum Suppression Threshold",
             "Non-maximum suppression threshold",
@@ -299,6 +300,7 @@ gst_opencv_detector_finalize(GObject *object)
     (void)self;
 
     delete self->detector_;
+    delete self->server_;
 
     return klass->finalize(object);
 }
@@ -541,6 +543,11 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
         filter->detector_->initialize(filter->configs_path, filter->weights_path, filter->class_names_path);
     }
 
+    if (filter->port && (filter->server_ == nullptr))
+    {
+        filter->server_ = new detections_list_server(filter->port);
+    }
+
     if (filter->detector_->is_initialized())
     {
         ScopedBufferMap scoped_buffer(buf, filter->detector_->width, filter->detector_->height, filter->detector_->format);
@@ -560,6 +567,11 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
         g_print("Detection took %0.3f seconds.\n", elapsed.count());
+
+        if (filter->server_)
+        {
+            filter->server_->publish(detection_list);
+        }
 
         if ((detection_list.detections.size() > 0) && filter->annotate)
         {

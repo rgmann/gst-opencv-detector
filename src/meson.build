@@ -24,7 +24,7 @@ gst_enabled = true
 
 # Generate headers from schema
 flatbuffer_schema = 'schema/detections_list.fbs'
-flatbuffers_generated_dir = 'generated'
+flatbuffers_generated_dir = 'src/generated'
 flatbuffers_h = custom_target(
     'flatbuffer_headers',
     output : 'detections_list_generated.h',
@@ -35,6 +35,8 @@ opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
     'object_detector.cpp',
     'gstopencvdetector.cpp',
+    'detections_list_subscriber.cpp',
+    'detections_list_subscriber_manager.cpp',
     flatbuffers_h
 ]
 

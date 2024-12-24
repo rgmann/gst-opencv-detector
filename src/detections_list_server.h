@@ -1,43 +1,58 @@
 #ifndef __DETECTIONS_LIST_SERVER_H__
 #define __DETECTIONS_LIST_SERVER_H__
 
+#include <deque>
+#include <thread>
 #include <boost/asio.hpp>
-#include "detection_list.h"
+#include "detections_list.h"
 #include "generated/detections_list_generated.h"
+#include "detections_list_subscriber_manager.h"
 
-class tcp_server {
+
+class detections_list_server {
 public:
 
-    tcp_server(boost::asio::io_context& io_context)
-        : io_context_(io_context)
-        , acceptor_(io_context, tcp::endpoint(tcp::v4(), 9000))
+    detections_list_server(int port)
+        : acceptor_(io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+        , runner_(&detections_list_server::run, this)
     {
         start_accept();
+    }
+
+    ~detections_list_server()
+    {
+        io_context_.stop();
+    }
+
+    void publish(const DetectionList& detections) {
+        manager_.publish(detections);
+    }
+
+    void run() {
+        io_context_.run();
     }
 
 private:
 
     void start_accept()
     {
-        // tcp_connection::pointer new_connection = tcp_connection::create(io_context_);
+        acceptor_.async_accept([this](const boost::system::error_code& error, boost::asio::ip::tcp::socket new_connection) {
+            if (!error) {
+                std::make_shared<detections_list_subscriber>(std::move(new_connection), manager_)->start();
+            }
 
-        // acceptor_.async_accept(new_connection->socket(),
-        //     std::bind(&tcp_server::handle_accept, this, new_connection,
-        //     boost::asio::placeholders::error));
+            start_accept();
+        });
     }
 
-    // void handle_accept(tcp_connection::pointer new_connection, const boost::system::error_code& error)
-    // {
-    //     if (!error)
-    //     {
-    //         new_connection->start();
-    //     }
+private:
 
-    //     start_accept();
-    // }
+    boost::asio::io_context io_context_;
+    boost::asio::ip::tcp::acceptor acceptor_;
+    std::thread runner_;
 
-    boost::asio::io_context& io_context_;
-    tcp::acceptor acceptor_;
+    detections_list_subscriber_manager manager_;
+
 };
 
 #endif // __DETECTIONS_LIST_SERVER_H__

@@ -64,7 +64,7 @@ endif
 
 common_arguments = [
     '-Wmissing-declarations',
-    '-Wshadow',
+    #'-Wshadow',
     '-include', meson.current_build_dir() / 'config.h',
 ]
 
