@@ -27,7 +27,7 @@ public:
             encoded_message = std::make_shared<message>();
 
             encoded_message->body_length_ = length;
-            std::snprintf(encoded_message->data_, HEADER_LENGTH, "%4zu", length);
+            std::snprintf(encoded_message->data_, HEADER_LENGTH, "%4d", static_cast<int>(length));
             std::memcpy(encoded_message->data_ + HEADER_LENGTH, raw, length);
         }
 
