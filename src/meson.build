@@ -35,6 +35,7 @@ opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
     'object_detector.cpp',
     'gstopencvdetector.cpp',
+    'detections_list_server.cpp',
     'detections_list_subscriber.cpp',
     'detections_list_subscriber_manager.cpp',
     flatbuffers_h

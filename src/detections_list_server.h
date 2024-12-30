@@ -12,38 +12,16 @@
 class detections_list_server {
 public:
 
-    detections_list_server(int port)
-        : acceptor_(io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
-        , runner_(&detections_list_server::run, this)
-    {
-        start_accept();
-    }
+    detections_list_server(int port);
+    ~detections_list_server();
 
-    ~detections_list_server()
-    {
-        io_context_.stop();
-    }
+    void publish(const DetectionList& detections);
 
-    void publish(const DetectionList& detections) {
-        manager_.publish(detections);
-    }
-
-    void run() {
-        io_context_.run();
-    }
+    void run();
 
 private:
 
-    void start_accept()
-    {
-        acceptor_.async_accept([this](const boost::system::error_code& error, boost::asio::ip::tcp::socket new_connection) {
-            if (!error) {
-                std::make_shared<detections_list_subscriber>(std::move(new_connection), manager_)->start();
-            }
-
-            start_accept();
-        });
-    }
+    void start_accept();
 
 private:
 
