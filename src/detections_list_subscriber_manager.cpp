@@ -64,13 +64,15 @@ message::ptr detections_list_subscriber_manager::build_message(const DetectionLi
 
     auto detections_vector = builder.CreateVector(detections);
 
-    gst_opencv_detector::CreateDetectionList(
+    auto detection_list = gst_opencv_detector::CreateDetectionList(
         builder,
         create_timestamp(),
         detections_list.width,
         detections_list.height,
         detections_vector
     );
+
+    builder.Finish(detection_list);
 
     return message::encode(builder.GetBufferPointer(), builder.GetSize());
 }

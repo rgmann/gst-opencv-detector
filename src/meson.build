@@ -29,7 +29,7 @@ flatbuffers_h = custom_target(
     'flatbuffer_headers',
     output : 'detections_list_generated.h',
     input : flatbuffer_schema,
-    command : [ flatc_exe, '--cpp', '-o', flatbuffers_generated_dir, '@INPUT@' ])
+    command : [ flatc_exe, '--cpp', '--python', '-o', flatbuffers_generated_dir, '@INPUT@' ])
 
 opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
