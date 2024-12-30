@@ -70,7 +70,7 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 try:
     # Connect to the server
-    client_socket.connect((args.host, args.port))
+    client_socket.connect((args.address, args.port))
 
     print('Connected to server')
 
@@ -96,13 +96,14 @@ try:
 
         else:
             print('Detected server disconnect. Exiting.')
+            break
 
     # Close the connection
     client_socket.close()
 
 except Exception as e:
 
-    print('Failed to connect to server')
+    print('Failed to connect to server: "{}"'.format(e))
 
 # # Send data to the server
 # message = "Hello, server!"
