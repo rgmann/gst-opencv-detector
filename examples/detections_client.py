@@ -71,39 +71,38 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     # Connect to the server
     client_socket.connect((args.address, args.port))
-
     print('Connected to server')
 
-    while True:
-        header_data = client_socket.recv(HEADER_SIZE)
+except Exception as e:
+    print('Failed to connect to server: "{}"'.format(e))
+    exit()
 
-        if header_data:
-            message_size = parse_message_size(header_data)
+while True:
+    header_data = client_socket.recv(HEADER_SIZE)
 
-            if message_size and message_size < MAX_MESSAGE_SIZE:
-                message_data = client_socket.recv(message_size)
-                if message_data:
-                    detections_list = parse_detections_list(message_data)
+    if header_data:
+        message_size = parse_message_size(header_data)
 
-                    print_detections_list(detections_list)
+        if message_size and message_size < MAX_MESSAGE_SIZE:
+            message_data = client_socket.recv(message_size)
+            if message_data:
+                detections_list = parse_detections_list(message_data)
 
-                else:
-                    print('Detected server disconnect. Exiting.')
-                    break
+                print_detections_list(detections_list)
+
             else:
-                print('Invalid message size: {}'.format(message_size))
+                print('Detected server disconnect. Exiting.')
                 break
-
         else:
-            print('Detected server disconnect. Exiting.')
+            print('Invalid message size: {}'.format(message_size))
             break
 
-    # Close the connection
-    client_socket.close()
+    else:
+        print('Detected server disconnect. Exiting.')
+        break
 
-except Exception as e:
-
-    print('Failed to connect to server: "{}"'.format(e))
+# Close the connection
+client_socket.close()
 
 # # Send data to the server
 # message = "Hello, server!"

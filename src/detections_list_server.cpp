@@ -20,6 +20,7 @@ void detections_list_server::publish(const DetectionList& detections)
 
 void detections_list_server::run()
 {
+    auto work = boost::asio::make_work_guard(io_context_);
     io_context_.run();
 }
 

@@ -30,7 +30,7 @@ public:
 
             char header[HEADER_LENGTH + 1] = "";
             std::snprintf(header, sizeof(header), "%4d", static_cast<int>(length));
-            std::memcpy(encoded_message->data_, raw, HEADER_LENGTH);
+            std::memcpy(encoded_message->data_, header, HEADER_LENGTH);
 
             std::memcpy(encoded_message->data_ + HEADER_LENGTH, raw, length);
         }
