@@ -48,7 +48,7 @@ def print_detections_list(detections_list : DetectionList):
         '  Detections:\n',
     ]
 
-    if len(detections_list.Detections()) > 0:
+    if detections_list.DetectionsLength() > 0:
         for detection in detections_list.Detections():
             msg.append('    Detection:\n')
             msg.append('      ID = {}\n'.format(detection.ClassId()))
@@ -63,7 +63,7 @@ def print_detections_list(detections_list : DetectionList):
     else:
         msg.append('    NONE\n')
 
-    print(msg)
+    print(''.join(msg))
 
 # Create a socket object
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
