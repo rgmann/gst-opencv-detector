@@ -9,7 +9,7 @@ import argparse
 from datetime import datetime
 from gst_opencv_detector.DetectionList import DetectionList
 
-HEADER_SIZE  =4
+HEADER_SIZE = 4
 MAX_MESSAGE_SIZE = 4096
 
 parser = argparse.ArgumentParser(
@@ -48,8 +48,10 @@ def print_detections_list(detections_list : DetectionList):
         '  Detections:\n',
     ]
 
-    if detections_list.DetectionsLength() > 0:
-        for detection in detections_list.Detections():
+    detections_count = detections_list.DetectionsLength()
+    if detections_count > 0:
+        for index in range(detections_count):
+            detection = detections_list.Detections(index)
             msg.append('    Detection:\n')
             msg.append('      ID = {}\n'.format(detection.ClassId()))
             msg.append('      NAME = {}\n'.format(detection.ClassName()))
@@ -103,12 +105,4 @@ while True:
 
 # Close the connection
 client_socket.close()
-
-# # Send data to the server
-# message = "Hello, server!"
-# client_socket.send(message.encode())
-
-# # Receive data from the server
-# data = client_socket.recv(1024)
-# print("Received from server:", data.decode())
 
