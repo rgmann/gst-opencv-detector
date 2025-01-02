@@ -1,6 +1,6 @@
 /*
- * OpenCV Detector Plugin
- * Copyright (C) 2024 Robert Vaughan <robert.glissmann@gmail.com>
+ * GstOpencvDetector Utils
+ * Copyright (C) 2024 Robert Vaughan <<robert.glissmann@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,68 +41,69 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#ifndef __OBJECT_DETECTOR_H__
-#define __OBJECT_DETECTOR_H__
+#ifndef __MESSAGE_H__
+#define __MESSAGE_H__
 
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn/dnn.hpp>
-#include "detections_list.h"
+#include <memory>
+#include <cstring>
+#include <cstdio>
 
-
-class ObjectDetector {
+class message {
 public:
 
-    // Public attributes representing current caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
+    typedef std::shared_ptr<message> ptr;
 
-    float conf_threshold;
-    float nms_threshold;
+    static constexpr size_t HEADER_LENGTH = 4;
+    static constexpr size_t MAX_BODY_LENGTH = 1024;
 
-public:
+    message() : body_length_(0)
+    {
+        std::memset(data_, 0, sizeof(data_));
+    }
 
-    ObjectDetector();
+    static message::ptr encode(const void* raw, size_t length)
+    {
+        message::ptr encoded_message;
 
-    /**
-     * Initialize the detector with the model definition, weights, and class names.
-     * 
-     * @param config Text file containing network configuration
-     * @param weights Binary file containing trained weights
-     * @return gboolean TRUE on success, FALSE on failure
-     */
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names);
+        if (length < MAX_BODY_LENGTH)
+        {
+            encoded_message = std::make_shared<message>();
 
-    /**
-     * 
-     */
-    gboolean is_initialized() const;
+            encoded_message->body_length_ = length;
 
-    /**
-     * Detects objects using loaded module and returns a list of detections.
-     * 
-     * @param image Input image. Image must be in BGR format.
-     * @param detection_list List of Detections
-     * @param annotate If true, image is annotated with a box arround each detection
-     * @return gboolean  TRUE on success, FALSE on failure
-     */
-    gboolean get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate);
+            char header[HEADER_LENGTH + 1] = "";
+            std::snprintf(header, sizeof(header), "%4d", static_cast<int>(length));
+            std::memcpy(encoded_message->data_, header, HEADER_LENGTH);
+
+            std::memcpy(encoded_message->data_ + HEADER_LENGTH, raw, length);
+        }
+
+        return encoded_message;
+    }
+
+    char* data()
+    {
+        return data_;
+    }
+
+    char* body()
+    {
+        return data() + HEADER_LENGTH;
+    }
+
+    size_t body_length()
+    {
+        return body_length_;
+    }
+
+    size_t size() {
+        return body_length() + HEADER_LENGTH;
+    }
 
 private:
 
-    gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
-
-    void annotate_detection(const Detection& detection, cv::Mat& image);
-
-private:
-
-    gboolean initialized_;
-
-    std::unique_ptr<cv::dnn::DetectionModel> model_;
-
-    std::vector<std::string> class_names_;
+    char data_[HEADER_LENGTH + MAX_BODY_LENGTH];
+    size_t body_length_;
 };
 
-#endif // __OBJECT_DETECTOR_H__
+#endif // __MESSAGE_H__

@@ -1,6 +1,6 @@
 /*
- * GstOpenCVServer Utils
- * Copyright (C) 2024 Robert Vaughan <<user@hostname.org>>
+ * GstOpencvDetector Utils
+ * Copyright (C) 2024 Robert Vaughan <<robert.glissmann@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

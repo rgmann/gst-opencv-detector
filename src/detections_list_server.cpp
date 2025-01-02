@@ -1,6 +1,6 @@
 /*
- * OpenCV Detector Plugin
- * Copyright (C) 2024 Robert Vaughan <robert.glissmann@gmail.com>
+ * GstOpencvDetector Utils
+ * Copyright (C) 2024 Robert Vaughan <<robert.glissmann@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,69 +40,40 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
+ 
+#include "detections_list_server.h"
 
-#ifndef __OBJECT_DETECTOR_H__
-#define __OBJECT_DETECTOR_H__
+detections_list_server::detections_list_server(int port)
+    : acceptor_(io_context_, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+    , runner_(&detections_list_server::run, this)
+{
+    start_accept();
+}
 
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn/dnn.hpp>
-#include "detections_list.h"
+detections_list_server::~detections_list_server()
+{
+    io_context_.stop();
+    runner_.join();
+}
 
+void detections_list_server::publish(const DetectionList& detections)
+{
+    manager_.publish(detections);
+}
 
-class ObjectDetector {
-public:
+void detections_list_server::run()
+{
+    auto work = boost::asio::make_work_guard(io_context_);
+    io_context_.run();
+}
 
-    // Public attributes representing current caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
+void detections_list_server::start_accept()
+{
+    acceptor_.async_accept([this](const boost::system::error_code& error, boost::asio::ip::tcp::socket new_connection) {
+        if (!error) {
+            std::make_shared<detections_list_subscriber>(std::move(new_connection), manager_)->start();
+        }
 
-    float conf_threshold;
-    float nms_threshold;
-
-public:
-
-    ObjectDetector();
-
-    /**
-     * Initialize the detector with the model definition, weights, and class names.
-     * 
-     * @param config Text file containing network configuration
-     * @param weights Binary file containing trained weights
-     * @return gboolean TRUE on success, FALSE on failure
-     */
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names);
-
-    /**
-     * 
-     */
-    gboolean is_initialized() const;
-
-    /**
-     * Detects objects using loaded module and returns a list of detections.
-     * 
-     * @param image Input image. Image must be in BGR format.
-     * @param detection_list List of Detections
-     * @param annotate If true, image is annotated with a box arround each detection
-     * @return gboolean  TRUE on success, FALSE on failure
-     */
-    gboolean get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate);
-
-private:
-
-    gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
-
-    void annotate_detection(const Detection& detection, cv::Mat& image);
-
-private:
-
-    gboolean initialized_;
-
-    std::unique_ptr<cv::dnn::DetectionModel> model_;
-
-    std::vector<std::string> class_names_;
-};
-
-#endif // __OBJECT_DETECTOR_H__
+        start_accept();
+    });
+}

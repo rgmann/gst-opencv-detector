@@ -2,11 +2,14 @@ project('gst-opencv-detector', 'c', 'cpp',
     meson_version : '>= 0.63',
     version : '1.0.0',
     default_options : [
-        'werror=true',
+        # 'werror=true',
         'warning_level=2',
         'cpp_std=c++17',
     ],
     license : 'LGPL 2.1+')
+
+gtest_proj = subproject('gtest')
+flatbuffers_proj = subproject('flatbuffers')
 
 gst_opencv_detector_git_version = meson.project_version()
 
@@ -61,7 +64,7 @@ endif
 
 common_arguments = [
     '-Wmissing-declarations',
-    '-Wshadow',
+    #'-Wshadow',
     '-include', meson.current_build_dir() / 'config.h',
 ]
 
@@ -96,7 +99,7 @@ if cc.get_id() == 'clang'
     endif
 
     cpp_arguments += [
-        '-Wextra-semi',
+        #'-Wextra-semi',
         '-Wthread-safety',
     ]
 endif

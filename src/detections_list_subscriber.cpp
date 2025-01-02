@@ -1,6 +1,6 @@
 /*
- * OpenCV Detector Plugin
- * Copyright (C) 2024 Robert Vaughan <robert.glissmann@gmail.com>
+ * GstOpencvDetector Utils
+ * Copyright (C) 2024 Robert Vaughan <<robert.glissmann@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,69 +40,69 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
+ 
+#include "detections_list_subscriber_manager.h"
+#include "detections_list_subscriber.h"
 
-#ifndef __OBJECT_DETECTOR_H__
-#define __OBJECT_DETECTOR_H__
+detections_list_subscriber::detections_list_subscriber(
+    boost::asio::ip::tcp::socket socket,
+    detections_list_subscriber_manager& manager
+)
+    : socket_(std::move(socket))
+    , subscriber_manager_(manager)
+{
+}
 
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn/dnn.hpp>
-#include "detections_list.h"
+void detections_list_subscriber::start()
+{
+    subscriber_manager_.join(shared_from_this());
+}
 
+void detections_list_subscriber::publish(const message::ptr message)
+{
+    bool write_in_progress = !messages_.empty();
+    messages_.push_back(message);
 
-class ObjectDetector {
-public:
+    if (!write_in_progress)
+    {
+        do_write();
+    }
+}
 
-    // Public attributes representing current caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
+void detections_list_subscriber::close()
+{
+    socket_.close();
+}
 
-    float conf_threshold;
-    float nms_threshold;
+void detections_list_subscriber::do_write()
+{
+    auto self(shared_from_this());
 
-public:
+    if (!messages_.empty())
+    {
+        message::ptr front = messages_.front();
 
-    ObjectDetector();
+        boost::asio::async_write(
+            socket_,
+            boost::asio::buffer(front->data(), front->size()),
+            [this, self](const boost::system::error_code& error, size_t bytes_written)
+            {
+                (void)bytes_written;
 
-    /**
-     * Initialize the detector with the model definition, weights, and class names.
-     * 
-     * @param config Text file containing network configuration
-     * @param weights Binary file containing trained weights
-     * @return gboolean TRUE on success, FALSE on failure
-     */
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names);
+                if (!error)
+                {
+                    messages_.pop_front();
 
-    /**
-     * 
-     */
-    gboolean is_initialized() const;
-
-    /**
-     * Detects objects using loaded module and returns a list of detections.
-     * 
-     * @param image Input image. Image must be in BGR format.
-     * @param detection_list List of Detections
-     * @param annotate If true, image is annotated with a box arround each detection
-     * @return gboolean  TRUE on success, FALSE on failure
-     */
-    gboolean get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate);
-
-private:
-
-    gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
-
-    void annotate_detection(const Detection& detection, cv::Mat& image);
-
-private:
-
-    gboolean initialized_;
-
-    std::unique_ptr<cv::dnn::DetectionModel> model_;
-
-    std::vector<std::string> class_names_;
-};
-
-#endif // __OBJECT_DETECTOR_H__
+                    if (!messages_.empty())
+                    {
+                        do_write();
+                    }
+                }
+                else
+                {
+                    subscriber_manager_.leave(shared_from_this());
+                }
+            }
+        );
+    }
+}

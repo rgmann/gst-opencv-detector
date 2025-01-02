@@ -1,6 +1,6 @@
 /*
- * OpenCV Detector Plugin
- * Copyright (C) 2024 Robert Vaughan <robert.glissmann@gmail.com>
+ * GstOpencvDetector Utils
+ * Copyright (C) 2024 Robert Vaughan <<robert.glissmann@gmail.com>>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,69 +40,40 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
+ 
+#ifndef __DETECTIONS_LIST_SERVER_H__
+#define __DETECTIONS_LIST_SERVER_H__
 
-#ifndef __OBJECT_DETECTOR_H__
-#define __OBJECT_DETECTOR_H__
-
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn/dnn.hpp>
+#include <deque>
+#include <thread>
+#include <boost/asio.hpp>
 #include "detections_list.h"
+#include "generated/detections_list_generated.h"
+#include "detections_list_subscriber_manager.h"
 
 
-class ObjectDetector {
+class detections_list_server {
 public:
 
-    // Public attributes representing current caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
+    detections_list_server(int port);
+    ~detections_list_server();
 
-    float conf_threshold;
-    float nms_threshold;
+    void publish(const DetectionList& detections);
 
-public:
-
-    ObjectDetector();
-
-    /**
-     * Initialize the detector with the model definition, weights, and class names.
-     * 
-     * @param config Text file containing network configuration
-     * @param weights Binary file containing trained weights
-     * @return gboolean TRUE on success, FALSE on failure
-     */
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names);
-
-    /**
-     * 
-     */
-    gboolean is_initialized() const;
-
-    /**
-     * Detects objects using loaded module and returns a list of detections.
-     * 
-     * @param image Input image. Image must be in BGR format.
-     * @param detection_list List of Detections
-     * @param annotate If true, image is annotated with a box arround each detection
-     * @return gboolean  TRUE on success, FALSE on failure
-     */
-    gboolean get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate);
+    void run();
 
 private:
 
-    gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
-
-    void annotate_detection(const Detection& detection, cv::Mat& image);
+    void start_accept();
 
 private:
 
-    gboolean initialized_;
+    boost::asio::io_context io_context_;
+    boost::asio::ip::tcp::acceptor acceptor_;
+    std::thread runner_;
 
-    std::unique_ptr<cv::dnn::DetectionModel> model_;
+    detections_list_subscriber_manager manager_;
 
-    std::vector<std::string> class_names_;
 };
 
-#endif // __OBJECT_DETECTOR_H__
+#endif // __DETECTIONS_LIST_SERVER_H__

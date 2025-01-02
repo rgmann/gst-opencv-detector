@@ -4,6 +4,9 @@ plugin_c_args = ['-DHAVE_CONFIG_H']
 
 glib_dep = dependency('glib-2.0', required : true )
 
+flatbuffers_dep = flatbuffers_proj.get_variable('flatbuffers_dep')
+flatc_exe = flatbuffers_proj.get_variable('flatc')
+
 gst_dep_version = '>=1.14.0'
 gstvideo_dep = dependency('gstreamer-video-1.0', version : gst_dep_version,
                           required : true)
@@ -12,17 +15,30 @@ gstallocator_dep = dependency('gstreamer-allocators-1.0', version : gst_dep_vers
 
 opencv_dep = dependency('opencv4', required : true)
 
-if not glib_dep.found() or not gstvideo_dep.found() or not gstallocator_dep.found()
-    gst_enabled = false
-    subdir_done()
-endif
+# if not glib_dep.found() or not gstvideo_dep.found() or not gstallocator_dep.found()
+#     gst_enabled = false
+#     subdir_done()
+# endif
 
 gst_enabled = true
+
+# Generate headers from schema
+flatbuffer_schema = 'schema/detections_list.fbs'
+flatbuffers_generated_dir = 'src/generated'
+flatbuffers_h = custom_target(
+    'flatbuffer_headers',
+    output : 'detections_list_generated.h',
+    input : flatbuffer_schema,
+    command : [ flatc_exe, '--cpp', '--python', '-o', flatbuffers_generated_dir, '@INPUT@' ])
 
 opencvdetector_gst_sources = [
     'gstopencv-utils.cpp',
     'object_detector.cpp',
     'gstopencvdetector.cpp',
+    'detections_list_server.cpp',
+    'detections_list_subscriber.cpp',
+    'detections_list_subscriber_manager.cpp',
+    flatbuffers_h
 ]
 
 opencvserver_gst_cpp_args = [
@@ -42,7 +58,7 @@ endif
 opencvdetector_gst = shared_library('gstopencvdetector',
     opencvdetector_gst_sources,
     cpp_args : opencvserver_gst_cpp_args,
-    dependencies : [gstvideo_dep, gstallocator_dep, opencv_dep],
+    dependencies : [gstvideo_dep, gstallocator_dep, opencv_dep, flatbuffers_dep],
     install : true,
     install_dir : '@0@/gstreamer-1.0'.format(get_option('libdir')),
 )

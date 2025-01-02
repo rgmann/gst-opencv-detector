@@ -1,6 +1,8 @@
 
 # gst-opencv-detector - Gstreamer Computer Vision Plugin
 
+<img align="cener" alt="Project Status: Alpha" src="https://img.shields.io/badge/Status-Alpha-red">
+
 This project implements a Gstreamer plugin wrapper for OpenCV object detection. The pre-trained detection model is passed to the plugin as a prop and the plugin processes the raw video stream frame-by-frame. Optionally, detections are annotated on each output frame. Detections are also published to subscribers via TCP.
 
 ## Motivation
@@ -78,3 +80,5 @@ See libcamera caps
 `sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! open_cvserver configs=/home/rgmann/Development/gst-opencv-server/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-server/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-server/config/coco.names ! queue ! fakesink`
 
 `sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc auto-focus-mode=AfModeContinuous ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! open_cvserver configs=/home/rgmann/Development/gst-opencv-server/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-server/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-server/config/coco.names ! queue ! glimagesink`
+
+sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-detector/build/src gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=/home/rgmann/Development/gst-opencv-detector/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-detector/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-detector/config/coco.names port=5050 ! queue ! fakesink
