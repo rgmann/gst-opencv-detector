@@ -95,6 +95,7 @@ enum
     PROP_CLASS_NAMES_PATH,
     PROP_ANNOTATE,
     PROP_PORT,
+    PROP_MAX_SUBSCRIBERS,
     PROP_CONF_THRESHOLD,
     PROP_NMS_THRESHOLD
 };
@@ -112,6 +113,7 @@ struct _GstOpencvDetector
     gchar* class_names_path;
     gboolean annotate;
     guint port;
+    guint max_subscribers;
     float conf_threshold;
     float nms_threshold;
 
@@ -236,6 +238,14 @@ gst_opencv_detector_class_init (GstOpencvDetectorClass * klass)
             "Port that detection server will opened on",
             0, 65525,
             0, G_PARAM_READWRITE));
+
+    g_object_class_install_property( gobject_class, PROP_MAX_SUBSCRIBERS,
+        g_param_spec_int(
+            "max-subscribers",
+            "Maximum Subscribers",
+            "Maximum number of subscribers that may be accepted",
+            1, detections_list_server::DEFAULT_MAX_SUBCRIBERS,
+            detections_list_server::DEFAULT_MAX_SUBCRIBERS, G_PARAM_READWRITE));
 
     g_object_class_install_property( gobject_class, PROP_CONF_THRESHOLD,
         g_param_spec_float(
@@ -377,6 +387,9 @@ gst_opencv_detector_set_property (GObject * object, guint prop_id,
     case PROP_PORT:
         filter->port = g_value_get_int(value);
         break;
+    case PROP_MAX_SUBSCRIBERS:
+        filter->max_subscribers = g_value_get_int(value);
+        break;
     case PROP_CONF_THRESHOLD:
         filter->conf_threshold = g_value_get_float(value);
         break;
@@ -413,6 +426,9 @@ gst_opencv_detector_get_property (GObject * object, guint prop_id,
         break;
     case PROP_PORT:
         g_value_set_int(value, filter->port);
+        break;
+    case PROP_MAX_SUBSCRIBERS:
+        g_value_set_int(value, filter->max_subscribers);
         break;
     case PROP_CONF_THRESHOLD:
         g_value_set_float(value, filter->conf_threshold);
@@ -545,7 +561,7 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 
     if (filter->port && (filter->server_ == nullptr))
     {
-        filter->server_ = new detections_list_server(filter->port);
+        filter->server_ = new detections_list_server(filter->port, static_cast<size_t>(filter->max_subscribers));
     }
 
     if (filter->detector_->is_initialized())
@@ -555,7 +571,7 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
         cv::Mat working_image = scoped_buffer.frame();
 
         DetectionList detection_list;
-        auto start = std::chrono::high_resolution_clock::now();
+        
         if (!filter->detector_->get_objects(working_image, detection_list, filter->annotate))
         {
             g_print("ERROR while attempting to get detections!\n");
@@ -564,9 +580,6 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
         {
             g_print("FOUND %lu objects.\n", detection_list.detections.size());
         }
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        g_print("Detection took %0.3f seconds.\n", elapsed.count());
 
         if (filter->server_)
         {

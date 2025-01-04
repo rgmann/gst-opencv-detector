@@ -34,7 +34,7 @@ def parse_detections_list(raw):
 
 def print_detections_list(detections_list : DetectionList):
 
-    tx_ts = detections_list.Timestamp()
+    tx_ts = detections_list.Info().Timestamp()
     tx_ts /= 1000.0
     tx_ts = datetime.fromtimestamp(tx_ts).strftime('%Y-%m-%d %H:%M:%S.%f')
 
@@ -43,8 +43,9 @@ def print_detections_list(detections_list : DetectionList):
         '  TX TS = {}\n'.format(tx_ts),
         '  RX TS = {}\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')),
         '  Image:\n',
-        '    WIDTH = {}\n'.format(detections_list.ImageWidth()),
-        '    HEIGHT = {}\n'.format(detections_list.ImageHeight()),
+        '    WIDTH = {}\n'.format(detections_list.Info().ImageWidth()),
+        '    HEIGHT = {}\n'.format(detections_list.Info().ImageHeight()),
+        '  ELAPSED TIME (ms) = {}\n'.format(detections_list.Info().ElapsedTimeMs()),
         '  Detections:\n',
     ]
 

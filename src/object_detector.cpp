@@ -44,6 +44,55 @@
 #include <fstream>
 #include "object_detector.h"
 
+class Timer {
+public:
+
+    Timer(bool auto_start = true)
+        : started_(false)
+        , stopped_(false)
+    {
+        if (auto_start) start();
+    }
+
+    void start()
+    {
+        start_ = std::chrono::system_clock::now();
+        started_ = true;
+    }
+
+    void stop()
+    {
+        end_ = std::chrono::system_clock::now();
+        stopped_ = true;
+    }
+
+    uint64_t elapsed_ms(bool auto_stop = true)
+    {
+        using namespace std::chrono;
+
+        if (auto_stop && !stopped_) stop();
+
+        if (started_ && stopped_)
+        {
+            std::chrono::duration<double> elapsed = end_ - start_;
+            auto elapsed_ms = duration_cast<milliseconds>(elapsed).count();
+            return static_cast<uint64_t>(elapsed_ms);
+        }
+
+        return 0;
+    }
+
+
+private:
+
+    std::chrono::time_point<std::chrono::system_clock> start_;
+    bool started_;
+
+    std::chrono::time_point<std::chrono::system_clock> end_;
+    bool stopped_;
+
+};
+
 ObjectDetector::ObjectDetector()
     : width(-1)
     , height(-1)
@@ -118,6 +167,20 @@ gboolean ObjectDetector::parse_class_names(const gchar* filename, std::vector<st
     }
 }
 
+uint64_t ObjectDetector::create_timestamp()
+{
+    using namespace std::chrono;
+
+    // Get the current time point
+    auto now = system_clock::now();
+
+    // Convert to milliseconds since epoch
+    auto millisecondsSinceEpoch = duration_cast<milliseconds>(now.time_since_epoch()).count();
+
+    // Return as uint64_t
+    return static_cast<uint64_t>(millisecondsSinceEpoch);
+}
+
 gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate)
 {
     gboolean success = FALSE;
@@ -128,8 +191,11 @@ gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_li
 
     if (is_initialized())
     {
-        detection_list.width = width;
-        detection_list.height = height;
+        Timer timer;
+
+        detection_list.info.timestamp = create_timestamp();
+        detection_list.info.image_width = width;
+        detection_list.info.image_height = height;
         
         model_->detect(image, class_ids, confidences, boxes, conf_threshold, nms_threshold);
 
@@ -157,6 +223,9 @@ gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_li
                 annotate_detection(detection, image);
             }
         }
+
+        timer.stop();
+        detection_list.info.elapsed_time_ms = timer.elapsed_ms();
 
         success = TRUE;
     }

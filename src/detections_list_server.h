@@ -40,7 +40,7 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
- 
+
 #ifndef __DETECTIONS_LIST_SERVER_H__
 #define __DETECTIONS_LIST_SERVER_H__
 
@@ -55,24 +55,48 @@
 class detections_list_server {
 public:
 
-    detections_list_server(int port);
+    // Maximum number of connections that the server can accept
+    static constexpr size_t DEFAULT_MAX_SUBCRIBERS = 5;
+
+    /**
+     * Constructor
+     *
+     * @param port Connection endpoint port number
+     * @param max_subscribers Maximum number of subscribers that may be in the pool at any point in time
+     */
+    detections_list_server(int port, size_t max_subscribers = DEFAULT_MAX_SUBCRIBERS);
+
+    /**
+     * The destructor stops the asio context and waits for the runner thread to exit
+     */
     ~detections_list_server();
 
+    /**
+     * Publish a list of detections to all subscribed clients. This is a no-op
+     * if there are no subscribers. Caller is never blocked.
+     *
+     * @param detections List of detections
+     * @return void
+     */
     void publish(const DetectionList& detections);
 
+    /**
+     * Server thread entry point.
+     *
+     * @return void
+     */
     void run();
 
-private:
-
-    void start_accept();
 
 private:
 
     boost::asio::io_context io_context_;
-    boost::asio::ip::tcp::acceptor acceptor_;
-    std::thread runner_;
 
+    // Subscription manager
     detections_list_subscriber_manager manager_;
+
+    // The server runs the asio event loop with a separate thread context
+    std::thread runner_;
 
 };
 

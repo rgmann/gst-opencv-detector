@@ -55,19 +55,53 @@ class detections_list_subscriber_manager;
 class detections_list_subscriber : public std::enable_shared_from_this<detections_list_subscriber> {
 public:
 
+    /**
+     * Constructor
+     *
+     * @param socket TCP socket for accepted connection
+     * @param manager Reference to the subscription pool manager
+     */
     explicit detections_list_subscriber(
         boost::asio::ip::tcp::socket socket,
         detections_list_subscriber_manager& manager);
 
+    /**
+     * Copying is not permitted
+     */
+    detections_list_subscriber(const detections_list_subscriber&) = delete;
+    detections_list_subscriber& operator= (const detections_list_subscriber&) = delete;
+
+    /**
+     * Add message to the subscriber's transmission queue.
+     *
+     * @param message Message to send
+     * @return void
+     */
     void publish(const message::ptr message);
 
+    /**
+     * Join the subscription pool to begin receiving detection lists.
+     *
+     * @return void
+     */
     void start();
 
+    /**
+     * Leave the pool and close the socket.
+     *
+     * @return void
+     */
     void close();
 
 private:
 
-    void do_write();
+    /**
+     * Start an asynchronous write operation.
+     *
+     * @return void
+     */
+    void start_write();
+
 
 private:
 

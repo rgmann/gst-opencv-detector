@@ -15,9 +15,14 @@ table Detection {
     confidence:float;
 }
 
-table DetectionList {
+struct Meta {
     timestamp:ulong;
     image_width:uint;
     image_height:uint;
+    elapsed_time_ms:uint;
+}
+
+table DetectionList {
+    info:Meta;
     detections:[Detection];
 }

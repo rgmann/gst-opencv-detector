@@ -40,7 +40,7 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
- 
+
 #include "detections_list_subscriber_manager.h"
 #include "detections_list_subscriber.h"
 
@@ -53,11 +53,6 @@ detections_list_subscriber::detections_list_subscriber(
 {
 }
 
-void detections_list_subscriber::start()
-{
-    subscriber_manager_.join(shared_from_this());
-}
-
 void detections_list_subscriber::publish(const message::ptr message)
 {
     bool write_in_progress = !messages_.empty();
@@ -65,8 +60,13 @@ void detections_list_subscriber::publish(const message::ptr message)
 
     if (!write_in_progress)
     {
-        do_write();
+        start_write();
     }
+}
+
+void detections_list_subscriber::start()
+{
+    subscriber_manager_.join(shared_from_this());
 }
 
 void detections_list_subscriber::close()
@@ -74,7 +74,7 @@ void detections_list_subscriber::close()
     socket_.close();
 }
 
-void detections_list_subscriber::do_write()
+void detections_list_subscriber::start_write()
 {
     auto self(shared_from_this());
 
@@ -95,7 +95,7 @@ void detections_list_subscriber::do_write()
 
                     if (!messages_.empty())
                     {
-                        do_write();
+                        start_write();
                     }
                 }
                 else

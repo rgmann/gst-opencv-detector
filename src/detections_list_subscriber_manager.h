@@ -40,35 +40,97 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
- 
+
 #ifndef __DETECTIONS_LIST_SUBSCRIBER_MANAGER_H__
 #define __DETECTIONS_LIST_SUBSCRIBER_MANAGER_H__
 
 #include <set>
 #include <cstdint>
+#include <boost/asio.hpp>
 #include "detections_list.h"
 #include "detections_list_subscriber.h"
 
 class detections_list_subscriber_manager {
 public:
 
+    /**
+     * Constructor
+     *
+     * @param context Async IO context
+     * @param port Connection endpoint port number
+     * @param max_subscribers Maximum number of subscribers that may be in the pool at any point in time
+     */
+    detections_list_subscriber_manager(
+        boost::asio::io_context& context,
+        int port,
+        size_t max_subscribers);
+
+    /**
+     * Copying is not permitted
+     */
+    detections_list_subscriber_manager(const detections_list_subscriber_manager&) = delete;
+    detections_list_subscriber_manager& operator= (const detections_list_subscriber_manager&) = delete;
+
+    /**
+     * Publish a list of detections to all subscribed clients. This is a no-op
+     * if there are no subscribers. Caller is never blocked.
+     *
+     * @param detection_list List of detections
+     * @return void
+     */
     void publish(const DetectionList& detection_list);
 
+    /**
+     * Add the subscriber to the subscription pool.
+     *
+     * @param subscriber Shared pointer to subscriber instance
+     * @return void
+     */
     void join(detections_list_subscriber_ptr subscriber);
 
+    /**
+     * Remove the subscriber from the subscription pool. If the pool was
+     * full before subscriber was removed, new subscriber acceptance will
+     * be triggered once the subscriber has been removed.
+     *
+     * @param subscriber Shared pointer to subscriber instance
+     * @return void
+     */
     void leave(detections_list_subscriber_ptr subscriber);
 
+    /**
+     * Stop and remove all subscribers from the pool.
+     */
     void stop_all();
 
+
 private:
 
-    static uint64_t create_timestamp();
+    /**
+     * Initiate asynchronous socket acceptor.
+     * 
+     * @return void
+     */
+    void start_accept();
 
+    /**
+     * Build a transmittable message from the specified detection list.
+     *
+     * @param detection_list Detection list to pack
+     * @return Shared pointer to transmittable message
+     */
     static message::ptr build_message(const DetectionList& detection_list);
 
+
 private:
 
+    boost::asio::ip::tcp::acceptor acceptor_;
+
+    size_t max_subscribers_;
+
     std::set<detections_list_subscriber_ptr> subscribers_;
+
+    bool accepting_connections_;
 };
 
 #endif // __DETECTIONS_LIST_SUBSCRIBER_MANAGER_H__

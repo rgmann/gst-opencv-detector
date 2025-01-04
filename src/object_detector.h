@@ -92,6 +92,8 @@ public:
 
 private:
 
+    static uint64_t create_timestamp();
+
     gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
 
     void annotate_detection(const Detection& detection, cv::Mat& image);

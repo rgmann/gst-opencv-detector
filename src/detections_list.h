@@ -40,7 +40,7 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  */
- 
+
 #ifndef __DETECTIONS_LIST_H__
 #define __DETECTIONS_LIST_H__
 
@@ -61,13 +61,33 @@ struct Detection {
 
     // Classification confidence score
     float confidence;
+};
 
-    std::string to_string() const;
+struct MetaInfo {
+    uint64_t timestamp;
+
+    // Image width
+    uint32_t image_width;
+
+    // Image height
+    uint32_t image_height;
+
+    // Elapsed time to perform detection in milliseconds
+    uint32_t elapsed_time_ms;
+
+    MetaInfo()
+    : timestamp(0)
+    , image_width(0)
+    , image_height(0)
+    , elapsed_time_ms(0)
+    {}
 };
 
 struct DetectionList {
-    int width;
-    int height;
+
+    MetaInfo info;
+
+    // List of detections associated with this image
     std::vector<Detection> detections;
 };
 

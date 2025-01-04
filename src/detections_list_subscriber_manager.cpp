@@ -46,6 +46,18 @@
 #include "generated/detections_list_generated.h"
 #include "detections_list_subscriber_manager.h"
 
+detections_list_subscriber_manager::detections_list_subscriber_manager(
+    boost::asio::io_context& context,
+    int port,
+    size_t max_subscribers
+)
+    : acceptor_(context, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
+    , max_subscribers_(max_subscribers)
+    , accepting_connections_(true)
+{
+    start_accept();
+}
+
 void detections_list_subscriber_manager::publish(const DetectionList& detections_list)
 {
     message::ptr message = build_message(detections_list);
@@ -59,31 +71,29 @@ void detections_list_subscriber_manager::publish(const DetectionList& detections
 void detections_list_subscriber_manager::join(detections_list_subscriber_ptr subscriber)
 {
     subscribers_.insert(subscriber);
+
+    if (subscribers_.size() >= max_subscribers_)
+    {
+        accepting_connections_ = false;
+    }
 }
 
 void detections_list_subscriber_manager::leave(detections_list_subscriber_ptr subscriber)
 {
     subscribers_.erase(subscriber);
     subscriber->close();
+
+    if (!accepting_connections_)
+    {
+        accepting_connections_ = true;
+        start_accept();
+    }
 }
 
 void detections_list_subscriber_manager::stop_all()
 {
+    accepting_connections_ = false;
     subscribers_.clear();
-}
-
-uint64_t detections_list_subscriber_manager::create_timestamp()
-{
-    using namespace std::chrono;
-
-    // Get the current time point
-    auto now = system_clock::now();
-
-    // Convert to milliseconds since epoch
-    auto millisecondsSinceEpoch = duration_cast<milliseconds>(now.time_since_epoch()).count();
-
-    // Return as uint64_t
-    return static_cast<uint64_t>(millisecondsSinceEpoch);
 }
 
 message::ptr detections_list_subscriber_manager::build_message(const DetectionList& detections_list)
@@ -111,15 +121,38 @@ message::ptr detections_list_subscriber_manager::build_message(const DetectionLi
 
     auto detections_vector = builder.CreateVector(detections);
 
+    auto meta_info = gst_opencv_detector::Meta(
+        detections_list.info.timestamp,
+        detections_list.info.image_width,
+        detections_list.info.image_height,
+        detections_list.info.elapsed_time_ms
+    );
+
     auto detection_list = gst_opencv_detector::CreateDetectionList(
         builder,
-        create_timestamp(),
-        detections_list.width,
-        detections_list.height,
+        &meta_info,
         detections_vector
     );
 
     builder.Finish(detection_list);
 
     return message::encode(builder.GetBufferPointer(), builder.GetSize());
+}
+
+void detections_list_subscriber_manager::start_accept()
+{
+    acceptor_.async_accept(
+        [this](const boost::system::error_code& error, boost::asio::ip::tcp::socket new_connection)
+        {
+            if (!error)
+            {
+                std::make_shared<detections_list_subscriber>(std::move(new_connection), *this)->start();
+            }
+
+            if (accepting_connections_)
+            {
+                start_accept();
+            }
+        }
+    );
 }
