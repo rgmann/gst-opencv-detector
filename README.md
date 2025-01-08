@@ -3,7 +3,9 @@
 
 <img align="cener" alt="Project Status: Alpha" src="https://img.shields.io/badge/Status-Alpha-red">
 
-This project implements a Gstreamer plugin wrapper for OpenCV object detection. The pre-trained detection model is passed to the plugin as a prop and the plugin processes the raw video stream frame-by-frame. Optionally, detections are annotated on each output frame. Detections are also published to subscribers via TCP.
+Welcome to the `gst-opencv-detector` project!  
+
+`gst-opencv-detector` is a Gstreamer plugin wrapper for OpenCV object detection. Given a pre-trained detection model, the plugin receives raw video frames on its _sink_ pad, uses the model to identify detections within the frame, and then transmits the detections to all subscribed clients (connected via TCP sockets). The plugin pushes unmodified frames to the _source_ pad so that downstream Gstreamer plugins can do additional processing. If enabled, the plugin can also annotate the frame to identify the objects that have been detected.
 
 ## Motivation
 
@@ -35,11 +37,8 @@ Path to OpenCV net weights file.
 `classes=<path to class name file>` (REQUIRED)  
 Path to class names file.
 
-`annotate=<TRUE|FALSE>` (default=TRUE)  
+`annotate=<TRUE|FALSE>` (default=FALSE)  
 Enable or disable detected object annotation.
-
-`port=<port number>` (default=0)  
-TCP port number used to publish the detection list. If a port number is not specified, then the detections server is not started.
 
 `confidence-threshold=<[0.0, 1.0]>` (default=0.5)  
 Inference confidence threshold.
@@ -47,38 +46,43 @@ Inference confidence threshold.
 `nms-threshold=<[0.0, 1.0]>` (default=0.1)  
 Non-maximum suppression threshold
 
+`port=<port number>` (default=0)  
+TCP port number used to publish the detection list. If a port number is not specified, then the detections server is not started.
+
+`max-subscribers` (default=1)
+Maximum number of clients that may subscribe to the detections server at once.
+
+
 ## Usage
 
-### Dependencies
+The following example shows how to launch a Gstreamer pipeline that captures frames from a connected PI Camera 3 module, perform object detection with annotation enabled, and display the annotated result in a GL image window on the device itself. The example assumes you have an evironment variable called `GST_OPENCV_DETECTOR` set to point to the root of this project.
+
+```
+gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=$GST_OPENCV_DETECTOR/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=$GST_OPENCV_DETECTOR/config/frozen_inference_graph.pb classes=$GST_OPENCV_DETECTOR/config/coco.names port=5050 ! queue ! glimagesink
+```
+
+For a headless configuration, you would run the following:
+
+```
+gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=$GST_OPENCV_DETECTOR/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=$GST_OPENCV_DETECTOR/config/frozen_inference_graph.pb classes=$GST_OPENCV_DETECTOR/config/coco.names port=5050 ! queue ! fakesink
+```
+
+If you want to see the annotated image for debugging purposes, but don't have a display directly connected to the device, you stream the frame and start a client elsewhere to receive and display the annotated frames.
+
+## Detections Server
+
+The `gst-opencv-detector` plugin is bundled with a server that publishes detected objects to all connected clients on the port specified in the plugin settings. Detections are published as flatbuffers `DetectionList` packets with a string-encoded packet size preamble. The flatbuffers schema can be found in src/schema, with header/extension code for the schema getting generated at build time. Once you have build the project, generated flatbuffers code can be found in the build/src/generated directory.
+
+At any time, the detection server will allow up to `max-subscribers` TCP clients to connect and subscribe to receive `DetectionList` packets.
+
+For the complete definition of the `DetectionList` packet, please see the [schema](src/schema/detections_list.fbs).
+
+### How do I subscribe to detections in Python?
+
+Please refer to the [detections_client.py](examples/detections_client.py) example.
+
+### How do I subscribe to detections in C++?
+
+Please refer to the [ros2_bridge.cpp](utils/ros2_bridge.cpp) example.
 
 
-### Test Commands
-
-For Default libcamera
-
-See libcamera caps
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 gst-device-monitor-1.0 Video`
-
-Stream video to video sink
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc ! 'video/x-raw,width=1280,height=720' ! queue ! glimagesink`
-
-Stream video to video sink
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc auto-focus-mode=AfModeAuto ! 'video/x-raw,width=1280,height=720' ! queue ! glimagesink`
-
-Stream video with opencv in the loop 
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc auto-focus-mode=AfModeAuto ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! open_cvserver c ! queue ! glimagesink`
-
-
-
-For raspberrypi/libcamera
-
-See libcamera caps
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer gst-device-monitor-1.0 Video`
-
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer gst-launch-1.0 libcamerasrc ! 'video/x-raw,width=1280,height=720' ! queue ! glimagesink`
-
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! open_cvserver configs=/home/rgmann/Development/gst-opencv-server/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-server/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-server/config/coco.names ! queue ! fakesink`
-
-`sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-server/build/src gst-launch-1.0 libcamerasrc auto-focus-mode=AfModeContinuous ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! open_cvserver configs=/home/rgmann/Development/gst-opencv-server/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-server/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-server/config/coco.names ! queue ! glimagesink`
-
-sudo LIBCAMERA_IPA_MODULE_PATH=/home/rgmann/Development/rpi_libcamera/build/src/ipa/rpi/vc4:/usr/local/share/libcamera/ipa/rpi/vc4/ LIBCAMERA_LOG_LEVELS=*:DEBUG GST_PLUGIN_PATH=/home/rgmann/Development/rpi_libcamera/build/src/gstreamer:/home/rgmann/Development/gst-opencv-detector/build/src gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=/home/rgmann/Development/gst-opencv-detector/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=/home/rgmann/Development/gst-opencv-detector/config/frozen_inference_graph.pb classes=/home/rgmann/Development/gst-opencv-detector/config/coco.names port=5050 ! queue ! fakesink
