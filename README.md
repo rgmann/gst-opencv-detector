@@ -58,13 +58,13 @@ Maximum number of clients that may subscribe to the detections server at once.
 The following example shows how to launch a Gstreamer pipeline that captures frames from a connected PI Camera 3 module, perform object detection with annotation enabled, and display the annotated result in a GL image window on the device itself. The example assumes you have an evironment variable called `GST_OPENCV_DETECTOR` set to point to the root of this project.
 
 ```
-gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=$GST_OPENCV_DETECTOR/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=$GST_OPENCV_DETECTOR/config/frozen_inference_graph.pb classes=$GST_OPENCV_DETECTOR/config/coco.names port=5050 ! queue ! glimagesink
+gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=${GST_OPENCV_DETECTOR}/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=${GST_OPENCV_DETECTOR}/config/frozen_inference_graph.pb classes=${GST_OPENCV_DETECTOR}/config/coco.names port=5050 ! queue ! glimagesink
 ```
 
 For a headless configuration, you would run the following:
 
 ```
-gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=$GST_OPENCV_DETECTOR/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=$GST_OPENCV_DETECTOR/config/frozen_inference_graph.pb classes=$GST_OPENCV_DETECTOR/config/coco.names port=5050 ! queue ! fakesink
+gst-launch-1.0 libcamerasrc ! 'video/x-raw,format=BGR,width=1280,height=720' ! queue ! opencv_detector configs=${GST_OPENCV_DETECTOR}/config/ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt weights=${GST_OPENCV_DETECTOR}/config/frozen_inference_graph.pb classes=${GST_OPENCV_DETECTOR}/config/coco.names port=5050 ! queue ! fakesink
 ```
 
 If you want to see the annotated image for debugging purposes, but don't have a display directly connected to the device, you stream the frame and start a client elsewhere to receive and display the annotated frames.
