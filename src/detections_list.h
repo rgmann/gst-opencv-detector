@@ -51,7 +51,7 @@
 struct Detection {
 
     // Classification returned by OpenCV 
-    int class_id;
+    int class_id = 0;
 
     // Class name associated with the ID
     std::string class_name;
@@ -60,7 +60,7 @@ struct Detection {
     cv::Rect box;
 
     // Classification confidence score
-    float confidence;
+    float confidence = 0.0;
 };
 
 struct MetaInfo {
