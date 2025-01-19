@@ -19,6 +19,11 @@ struct Meta {
     timestamp:ulong;
     image_width:uint;
     image_height:uint;
+
+    crop_width:uint;
+
+    crop_height:uint;
+
     elapsed_time_ms:uint;
 }
 

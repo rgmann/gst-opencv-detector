@@ -94,19 +94,28 @@ private:
 };
 
 ObjectDetector::ObjectDetector()
-    : width(-1)
-    , height(-1)
-    , conf_threshold(0.45)
-    , nms_threshold(0.2)
-    , initialized_(FALSE)
+    : initialized_(FALSE)
+    , crop_size_(cv::Size(ObjectDetector::kDefaultCropWidth, ObjectDetector::kDefaultCropHeight))
+    , conf_threshold_(ObjectDetector::kDefaultConfidenceThreshold)
+    , nms_threshold_(ObjectDetector::kDefaultNmsThreshold)
+    , annotation_enabled_(false)
 {
 }
 
-gboolean ObjectDetector::initialize(const gchar* config_file, const gchar* weights_file, const gchar* class_names_file)
+gboolean ObjectDetector::initialize(
+    const gchar* config_file,
+    const gchar* weights_file, 
+    const gchar* class_names_file,
+    float        conf_threshold,
+    float        nms_threshold,
+    cv::Size     crop,
+    float        input_scale,
+    float        input_mean,
+    bool         swap_rb)
 {
     gboolean success = FALSE;
 
-    if (config_file && weights_file && class_names_file && (width > 0) && (height > 0))
+    if (config_file && weights_file && class_names_file)
     {
         g_print("Creating detection model.\n");
 
@@ -119,17 +128,18 @@ gboolean ObjectDetector::initialize(const gchar* config_file, const gchar* weigh
                 config_file
             );
 
-            cv::Size input_size(320, 320);
-            // cv::Size input_size(width, height);
-            model_->setInputSize(input_size);
+            conf_threshold_ = conf_threshold;
+            nms_threshold_ = nms_threshold;
 
-            // cv::Scalar input_scale = 1.0 / 127.5;
-            model_->setInputScale(1.0 / 127.5);
+            // Override the input size. If the image size and the input size
+            // are not equal, OpenCV performs a crop from the center of the
+            // input image.
+            crop_size_ = crop;
+            model_->setInputSize(crop);
 
-            cv::Scalar input_mean = 127.5;
+            model_->setInputScale(input_scale);
             model_->setInputMean(input_mean);
-
-            model_->setInputSwapRB(true);
+            model_->setInputSwapRB(swap_rb);
 
             initialized_ = TRUE;
         }
@@ -145,6 +155,11 @@ gboolean ObjectDetector::initialize(const gchar* config_file, const gchar* weigh
 gboolean ObjectDetector::is_initialized() const
 {
     return initialized_;
+}
+
+void ObjectDetector::set_annotate(bool enable_annotation)
+{
+    annotation_enabled_ = enable_annotation;
 }
 
 gboolean ObjectDetector::parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const
@@ -181,7 +196,7 @@ uint64_t ObjectDetector::create_timestamp()
     return static_cast<uint64_t>(millisecondsSinceEpoch);
 }
 
-gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate)
+gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_list)
 {
     gboolean success = FALSE;
 
@@ -194,10 +209,14 @@ gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_li
         Timer timer;
 
         detection_list.info.timestamp = create_timestamp();
-        detection_list.info.image_width = width;
-        detection_list.info.image_height = height;
+        detection_list.info.image_width = image.size().width;
+        detection_list.info.image_height = image.size().height;
+        detection_list.info.crop_width = crop_size_.width;
+        detection_list.info.crop_height = crop_size_.height;
         
-        model_->detect(image, class_ids, confidences, boxes, conf_threshold, nms_threshold);
+        model_->detect(image, class_ids, confidences, boxes, conf_threshold_, nms_threshold_);
+
+        detection_list.detections.reserve(class_ids.size());
 
         for (std::size_t index = 0; index < class_ids.size(); ++index)
         {
@@ -214,11 +233,9 @@ gboolean ObjectDetector::get_objects(cv::Mat& image, DetectionList& detection_li
             detection.box = boxes[index];
             detection.confidence = confidences[index];
 
-            // print_detection(detection);
-
             detection_list.detections.push_back(detection);
 
-            if (annotate)
+            if (annotation_enabled_)
             {
                 annotate_detection(detection, image);
             }

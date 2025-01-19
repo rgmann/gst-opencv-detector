@@ -64,23 +64,22 @@ struct Detection {
 };
 
 struct MetaInfo {
-    uint64_t timestamp;
+    uint64_t timestamp = 0;
 
     // Image width
-    uint32_t image_width;
+    uint32_t image_width = 0;
 
     // Image height
-    uint32_t image_height;
+    uint32_t image_height = 0;
+
+    // Image width
+    uint32_t crop_width = 0;
+
+    // Image height
+    uint32_t crop_height = 0;
 
     // Elapsed time to perform detection in milliseconds
-    uint32_t elapsed_time_ms;
-
-    MetaInfo()
-    : timestamp(0)
-    , image_width(0)
-    , image_height(0)
-    , elapsed_time_ms(0)
-    {}
+    uint32_t elapsed_time_ms = 0;
 };
 
 struct DetectionList {

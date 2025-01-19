@@ -125,6 +125,8 @@ message::ptr detections_list_subscriber_manager::build_message(const DetectionLi
         detections_list.info.timestamp,
         detections_list.info.image_width,
         detections_list.info.image_height,
+        detections_list.info.crop_width,
+        detections_list.info.crop_height,
         detections_list.info.elapsed_time_ms
     );
 

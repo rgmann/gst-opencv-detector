@@ -117,6 +117,12 @@ struct _GstOpencvDetector
     float conf_threshold;
     float nms_threshold;
 
+    gint width;
+    gint height;
+    GstVideoFormat format;
+
+    DetectionList detection_list;
+
     // std::unique_ptr<ObjectDetector> detector_;
     ObjectDetector* detector_;
     detections_list_server* server_;
@@ -487,7 +493,7 @@ gst_opencv_detector_sink_event (GstPad * pad, GstObject * parent,
                     {
                         const gchar* format_string = gst_structure_get_string(s, "format");
                         if (format_string) {
-                            filter->detector_->format = gst_video_format_from_string(format_string);
+                            filter->format = gst_video_format_from_string(format_string);
                             g_print("   Format = %s\n", gst_structure_get_name(s));
                         }
                     }
@@ -501,7 +507,7 @@ gst_opencv_detector_sink_event (GstPad * pad, GstObject * parent,
                         gint width = -1;
                         if (gst_structure_get_int(s, "width", &width))
                         {
-                            filter->detector_->width = width;
+                            filter->width = width;
                             g_print("   Width = %d\n", width);
                         } 
                     }
@@ -514,7 +520,7 @@ gst_opencv_detector_sink_event (GstPad * pad, GstObject * parent,
                     {
                         gint height = -1;
                         if (gst_structure_get_int(s, "height", &height)) {
-                            filter->detector_->height = height;
+                            filter->height = height;
                             g_print("   Height = %d\n", height);
                         }
                     }
@@ -553,10 +559,20 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
 
     filter = GST_OPENCVDETECTOR (parent);
 
+    ObjectDetector* detector = filter->detector_;
+
     // Attempt to initialize the filter state.
-    if (!filter->detector_->is_initialized())
+    if (!detector->is_initialized())
     {
-        filter->detector_->initialize(filter->configs_path, filter->weights_path, filter->class_names_path);
+        detector->initialize(
+            filter->configs_path,
+            filter->weights_path,
+            filter->class_names_path,
+            filter->conf_threshold,
+            filter->nms_threshold
+        );
+
+        detector->set_annotate(filter->annotate);
     }
 
     if (filter->port && (filter->server_ == nullptr))
@@ -564,15 +580,16 @@ gst_opencv_detector_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
         filter->server_ = new detections_list_server(filter->port, static_cast<size_t>(filter->max_subscribers));
     }
 
-    if (filter->detector_->is_initialized())
+    if (detector->is_initialized())
     {
-        ScopedBufferMap scoped_buffer(buf, filter->detector_->width, filter->detector_->height, filter->detector_->format);
+        ScopedBufferMap scoped_buffer(buf, filter->width, filter->height, filter->format);
 
         cv::Mat working_image = scoped_buffer.frame();
 
-        DetectionList detection_list;
-        
-        if (!filter->detector_->get_objects(working_image, detection_list, filter->annotate))
+        DetectionList& detection_list = filter->detection_list;
+
+        detection_list.detections.clear();
+        if (!detector->get_objects(working_image, detection_list))
         {
             g_print("ERROR while attempting to get detections!\n");
         }

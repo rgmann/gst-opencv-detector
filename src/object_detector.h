@@ -54,49 +54,93 @@
 class ObjectDetector {
 public:
 
-    // Public attributes representing current caps
-    gint width;
-    gint height;
-    GstVideoFormat format;
-
-    float conf_threshold;
-    float nms_threshold;
-
-public:
+    static constexpr int kDefaultCropWidth = 320;
+    static constexpr int kDefaultCropHeight = 320;
+    static constexpr float kDefaultScale = 1.0 / 127.5;
+    static constexpr float kDefaultInputMean = 127.5;
+    static constexpr float kDefaultConfidenceThreshold = 0.45;
+    static constexpr float kDefaultNmsThreshold = 0.2;
 
     ObjectDetector();
+    ObjectDetector( const ObjectDetector& ) = delete;
+    ObjectDetector& operator= ( const ObjectDetector& ) = delete;
 
     /**
      * Initialize the detector with the model definition, weights, and class names.
      * 
      * @param config Text file containing network configuration
      * @param weights Binary file containing trained weights
+     * @param class_names Path to file containing class names
+     * @param conf_threshold Confidence threshold for returned detections
+     * @param nms_threshold NMS threshold
+     * @param crop Image crop size
+     * @param scale Input scaling factor
+     * @param input_mean Input mean
+     * @param swap_rb Swap RED/BLUE
      * @return gboolean TRUE on success, FALSE on failure
      */
-    gboolean initialize(const gchar* config, const gchar* weights, const gchar* class_names);
+    gboolean initialize(
+        const gchar* config,
+        const gchar* weights,
+        const gchar* class_names,
+        float        conf_threshold = kDefaultConfidenceThreshold,
+        float        nms_threshold = kDefaultNmsThreshold,
+        cv::Size     crop = cv::Size(kDefaultCropWidth, kDefaultCropHeight),
+        float        input_scale = kDefaultScale,
+        float        input_mean = kDefaultInputMean,
+        bool         swap_rb = true);
 
     /**
-     * 
+     * Check whether the detector has been successfully initialized.
+     *
+     * @return gboolean
      */
     gboolean is_initialized() const;
+
+    /**
+     * Enable/disable detection annotation.
+     *
+     * @param enable_annotation Annotation state
+     */
+    void set_annotate(bool enable_annotation);
 
     /**
      * Detects objects using loaded module and returns a list of detections.
      * 
      * @param image Input image. Image must be in BGR format.
      * @param detection_list List of Detections
-     * @param annotate If true, image is annotated with a box arround each detection
      * @return gboolean  TRUE on success, FALSE on failure
      */
-    gboolean get_objects(cv::Mat& image, DetectionList& detection_list, gboolean annotate);
+    gboolean get_objects(cv::Mat& image, DetectionList& detection_list);
+
 
 private:
 
+    /**
+     * Create a 64-bit timestamp (milliseconds since epoch)
+     * @return uint64_t timestamp
+     */
     static uint64_t create_timestamp();
 
+    /**
+     * Parse the class names associated with the class_ids that detection will
+     * return. Note that the class_id is the index of the name in the file.
+     *
+     * @param filename Full path to file
+     * @param class_names Vector of class name strings
+     * @return gboolean True on success, false on failure
+     */
     gboolean parse_class_names(const gchar* filename, std::vector<std::string>& class_names) const;
 
+    /**
+     * Annotate the specified detection.
+     *
+     * @param detection Detection
+     * @param image Image
+     * @return void
+     */
     void annotate_detection(const Detection& detection, cv::Mat& image);
+
 
 private:
 
@@ -105,6 +149,14 @@ private:
     std::unique_ptr<cv::dnn::DetectionModel> model_;
 
     std::vector<std::string> class_names_;
+
+    cv::Size crop_size_;
+
+    float conf_threshold_;
+
+    float nms_threshold_;
+
+    bool annotation_enabled_;
 };
 
 #endif // __OBJECT_DETECTOR_H__
